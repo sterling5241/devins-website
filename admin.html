@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1612">
+  <title>Admin — The.Pouches</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <style>
+    /* Admin-page specific overrides */
+    body { background: #f0ece6; }
+
+    .admin-gate {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - 64px); padding: 2rem;
+    }
+    .admin-gate-box {
+      background: #fff; border: 1px solid var(--border); border-radius: 10px;
+      padding: 2.5rem 2rem; width: 100%; max-width: 360px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.08); text-align: center;
+    }
+    .admin-gate-logo {
+      font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 900;
+      color: var(--ink); margin-bottom: 0.25rem;
+    }
+    .admin-gate-logo span { color: var(--accent); }
+    .admin-gate-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; }
+    .admin-gate-box .field-group { text-align: left; }
+
+    /* Admin dashboard layout */
+    .admin-page { display: none; }
+    body.admin-mode .admin-gate { display: none; }
+    body.admin-mode .admin-page { display: block; }
+
+    .admin-topbar {
+      background: var(--ink); color: var(--cream);
+      padding: 0 clamp(1rem,5vw,4rem); height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .admin-topbar-logo {
+      font-family: 'Playfair Display', serif; font-weight: 900;
+      font-size: 1.3rem; color: var(--cream); text-decoration: none;
+    }
+    .admin-topbar-logo span { color: var(--accent); }
+    .admin-topbar-actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .admin-topbar-actions button {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25);
+      color: #fff; font-family: 'DM Sans', sans-serif; font-size: 0.82rem;
+      font-weight: 500; padding: 0.45rem 0.9rem; border-radius: 4px;
+      cursor: pointer; transition: background 0.15s; white-space: nowrap;
+    }
+    .admin-topbar-actions button:hover { background: rgba(255,255,255,0.22); }
+    .admin-topbar-actions .btn-danger { border-color: rgba(239,68,68,0.5); }
+    .admin-topbar-actions .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .admin-topbar-actions a.view-shop {
+      font-size: 0.78rem; color: rgba(255,255,255,0.6); text-decoration: none;
+      padding: 0.4rem 0.7rem; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .admin-topbar-actions a.view-shop:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+    /* Quick-stats strip */
+    .admin-stats-strip {
+      background: var(--cream); border-bottom: 1px solid var(--border);
+      padding: 0.8rem clamp(1rem,5vw,4rem);
+      display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+    }
+    .admin-stat-pill {
+      display: flex; flex-direction: column; gap: 0.1rem;
+    }
+    .admin-stat-pill-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted);
+    }
+    .admin-stat-pill-value {
+      font-family: 'DM Sans', sans-serif; font-size: 1.1rem; font-weight: 700;
+      color: var(--ink); font-variant-numeric: tabular-nums;
+    }
+    .admin-stat-pill-value.accent { color: var(--accent); }
+
+    /* Main content area */
+    .admin-content { padding: clamp(1rem,3vw,2rem) clamp(1rem,5vw,4rem); }
+    .admin-section { margin-bottom: 2rem; }
+    .admin-section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .admin-section-title {
+      font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700;
+    }
+
+    /* Quick product table */
+    .product-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+    .product-table th {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); padding: 0.75rem 1rem;
+      background: var(--cream); border-bottom: 1px solid var(--border); text-align: left;
+    }
+    .product-table td {
+      padding: 0.7rem 1rem; border-bottom: 1px solid #f0ece6;
+      font-size: 0.88rem; color: var(--ink); vertical-align: middle;
+    }
+    .product-table tr:last-child td { border-bottom: none; }
+    .product-table tr:hover td { background: #fafaf8; }
+    .product-table .product-img {
+      width: 40px; height: 40px; border-radius: 4px; object-fit: cover;
+      background: var(--cream); display: block;
+    }
+    .product-table .product-name { font-weight: 600; }
+    .product-table .product-stock { font-variant-numeric: tabular-nums; }
+    .stock-ok { color: #16a34a; font-weight: 700; }
+    .stock-low { color: #b45309; font-weight: 700; }
+    .stock-out { color: #dc2626; font-weight: 700; }
+    .tbl-actions { display: flex; gap: 0.4rem; }
+    .tbl-btn {
+      background: transparent; border: 1px solid var(--border); border-radius: 3px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.76rem; padding: 0.28rem 0.65rem;
+      cursor: pointer; color: var(--slate); transition: all 0.15s;
+    }
+    .tbl-btn:hover { border-color: var(--ink); color: var(--ink); }
+    .tbl-btn.danger:hover { border-color: #dc2626; color: #dc2626; }
+
+    /* Recent orders mini-table */
+    .mini-orders { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .mini-order-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.7rem 1rem; border-bottom: 1px solid #f0ece6; gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .mini-order-row:last-child { border-bottom: none; }
+    .mini-order-id { font-size: 0.72rem; font-weight: 700; color: var(--muted); min-width: 60px; }
+    .mini-order-items { font-size: 0.85rem; flex: 1; }
+    .mini-order-meta { font-size: 0.78rem; color: var(--muted); }
+    .mini-order-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 640px) {
+      .admin-topbar-actions { gap: 0.4rem; }
+      .admin-topbar-actions button { font-size: 0.74rem; padding: 0.4rem 0.6rem; }
+      .admin-stats-strip { gap: 1rem; }
+      .product-table th, .product-table td { padding: 0.6rem 0.6rem; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── LOGIN GATE (shown when not authenticated) ── -->
+  <div class="admin-gate" id="admin-gate">
+    <div class="admin-gate-box">
+      <div class="admin-gate-logo">The<span>.</span>Pouches</div>
+      <div class="admin-gate-sub">Admin Dashboard</div>
+      <div class="field-group" style="margin-bottom:1rem;">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter admin password"
+          onkeydown="if(event.key==='Enter') doLogin()" autofocus>
+      </div>
+      <div class="modal-error" id="login-error">Incorrect password.</div>
+      <button class="btn-primary" style="width:100%;margin-top:0.75rem" onclick="doLogin()">Log In</button>
+      <a href="index.html" style="display:block;margin-top:1rem;font-size:0.82rem;color:var(--muted);text-decoration:none;">← Back to Shop</a>
+    </div>
+  </div>
+
+  <!-- ── ADMIN DASHBOARD (shown when authenticated) ── -->
+  <div class="admin-page">
+
+    <!-- Top bar -->
+    <div class="admin-topbar">
+      <a class="admin-topbar-logo" href="admin.html">The<span>.</span>Pouches <span style="font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:400;opacity:.5;">Admin</span></a>
+      <div class="admin-topbar-actions">
+        <button onclick="openProductModal()">+ Product</button>
+        <button onclick="openFiltersModal()">🏷 Filters</button>
+        <button onclick="openHeroModal()">🖼 Banner</button>
+        <button onclick="openSliderModal()">🎞 Slider</button>
+        <button onclick="openPickupInstructionsModal()">📋 Pickup</button>
+        <button onclick="openHoursModal()">📅 Hours</button>
+        <button onclick="openOrders()">📦 Orders <span class="orders-badge" id="orders-badge"></span></button>
+        <button onclick="openFinancials()">💰 Financials</button>
+        <button class="btn-danger" onclick="logout()">Log Out</button>
+        <a class="view-shop" href="index.html" target="_blank">View Shop ↗</a>
+      </div>
+    </div>
+
+    <!-- Quick stats strip -->
+    <div class="admin-stats-strip" id="admin-stats-strip">
+      <div class="admin-stat-pill">
+        <span class="admin-stat-pill-label">Products</span>
+        <span class="admin-stat-pill-value" id="stat-products">—</span>
+      </div>
+      <div class="admin-stat-pill">
+        <span class="admin-stat-pill-label">Open Orders</span>
+        <span class="admin-stat-pill-value accent" id="stat-open-orders">—</span>
+      </div>
+      <div class="admin-stat-pill">
+        <span class="admin-stat-pill-label">Revenue (All Time)</span>
+        <span class="admin-stat-pill-value" id="stat-revenue">—</span>
+      </div>
+      <div class="admin-stat-pill">
+        <span class="admin-stat-pill-label">Shop Status</span>
+        <span class="admin-stat-pill-value" id="stat-status">—</span>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="admin-content">
+
+      <!-- Products table -->
+      <div class="admin-section">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">Products</h2>
+          <button class="btn-primary" onclick="openProductModal()">+ Add Product</button>
+        </div>
+        <table class="product-table" id="admin-product-table">
+          <thead>
+            <tr>
+              <th style="width:48px"></th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Cost</th>
+              <th>Stock</th>
+              <th style="width:120px"></th>
+            </tr>
+          </thead>
+          <tbody id="admin-product-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Recent orders -->
+      <div class="admin-section">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">Recent Orders</h2>
+          <button class="btn-secondary" onclick="openOrders()">View All →</button>
+        </div>
+        <div class="mini-orders" id="admin-recent-orders"></div>
+      </div>
+
+    </div><!-- /admin-content -->
+  </div><!-- /admin-page -->
+
+
+  <!-- ── ALL SHARED MODALS (same as index.html) ── -->
+
+  <!-- HERO EDIT -->
+  <div class="modal-overlay" id="hero-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Banner</h2>
+        <button class="modal-close" onclick="cancelHeroEdit()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>Background Image — optional</label>
+          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b> · Recommended <b>1920×800 px</b></div>
+          <div class="img-drop-zone" id="edit-hero-bg-zone">
+            <label class="img-drop-empty" for="edit-hero-bg-file">
+              <div class="img-drop-icon">🖼</div>
+              <div class="img-drop-text">Drag &amp; drop an image here<br>or <strong>tap to browse</strong></div>
+            </label>
+            <div class="img-drop-preview-wrap" style="display:none">
+              <img class="img-drop-preview">
+              <button type="button" class="img-drop-remove" title="Remove image">✕</button>
+            </div>
+            <div class="img-drop-loading" style="display:none">Uploading...</div>
+            <div class="img-drop-or">— or paste a URL —</div>
+            <input type="text" class="img-drop-url" id="edit-hero-bg" placeholder="https://...">
+            <input type="file" id="edit-hero-bg-file" class="img-drop-file" accept="image/*">
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Background Adjustments</label>
+          <div class="slider-row"><label>Size</label><input type="range" id="edit-hero-bg-size" min="10" max="300" step="1" value="100" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-size-val">100%</span></div>
+          <div class="slider-row"><label>Position X</label><input type="range" id="edit-hero-bg-posx" min="-100" max="100" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-posx-val">0%</span></div>
+          <div class="slider-row"><label>Position Y</label><input type="range" id="edit-hero-bg-posy" min="-100" max="100" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-posy-val">0%</span></div>
+          <div class="slider-row"><label>Rotation</label><input type="range" id="edit-hero-bg-rot" min="-180" max="180" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-rot-val">0°</span></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="cancelHeroEdit()">Cancel</button>
+        <button class="btn-primary" onclick="saveHero()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDER EDITOR -->
+  <div class="modal-overlay" id="slider-modal">
+    <div class="modal slider-modal">
+      <div class="modal-header">
+        <h2>Edit Slider</h2>
+        <button class="modal-close" onclick="cancelSliderEdit()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="slider-editor-list"></div>
+        <button class="slide-add-btn" onclick="addSlide()">+ Add Slide</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="cancelSliderEdit()">Cancel</button>
+        <button class="btn-primary" onclick="saveSlider()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD / EDIT PRODUCT -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="product-modal-title">Add Product</h2>
+        <button class="modal-close" onclick="closeModal('product-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group"><label>Product Name</label><input type="text" id="edit-name" placeholder="e.g. Leather Crossbody Pouch"></div>
+        <div class="field-group"><label>Description</label><textarea id="edit-desc" placeholder="Describe the item..."></textarea></div>
+        <div class="field-row">
+          <div class="field-group"><label>Price ($)</label><input type="number" id="edit-price" placeholder="0" min="0" step="0.01"></div>
+          <div class="field-group"><label>Cost ($)</label><input type="number" id="edit-cost" placeholder="0" min="0" step="0.01"></div>
+        </div>
+        <div class="field-row">
+          <div class="field-group"><label>Badge — optional</label><input type="text" id="edit-badge" placeholder="e.g. New, Sale"></div>
+        </div>
+        <div class="field-group"><label>Category</label><input type="text" id="edit-category" placeholder="e.g. Pouches, Clothing"></div>
+        <div class="field-group">
+          <label>Filters</label>
+          <div class="product-filters-wrap" id="product-filters-wrap"></div>
+        </div>
+        <div class="field-group">
+          <label>Image</label>
+          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b></div>
+          <div class="img-drop-zone" id="edit-img-zone">
+            <label class="img-drop-empty" for="edit-img-file">
+              <div class="img-drop-icon">📷</div>
+              <div class="img-drop-text">Drag &amp; drop an image here<br>or <strong>tap to browse</strong></div>
+            </label>
+            <div class="img-drop-preview-wrap" style="display:none">
+              <img class="img-drop-preview">
+              <button type="button" class="img-drop-remove" title="Remove image">✕</button>
+            </div>
+            <div class="img-drop-loading" style="display:none">Uploading...</div>
+            <div class="img-drop-or">— or paste a URL —</div>
+            <input type="text" class="img-drop-url" id="edit-img" placeholder="https://...">
+            <input type="file" id="edit-img-file" class="img-drop-file" accept="image/*">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group"><label>Stock Quantity</label><input type="number" id="edit-qty" placeholder="e.g. 5" min="0"></div>
+          <div class="field-group"><label>Max Per Order</label><input type="number" id="edit-max-qty" placeholder="e.g. 10" min="1"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('product-modal')">Cancel</button>
+        <button class="btn-primary" onclick="saveProduct()">Save Product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTERS MANAGEMENT -->
+  <div class="modal-overlay" id="filters-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Manage Filters</h2>
+        <button class="modal-close" onclick="closeModal('filters-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-info">Create filters customers can use to narrow the shop.</div>
+        <div id="filters-list"></div>
+        <button class="btn-secondary" onclick="addFilter()" style="align-self:flex-start;">+ Add Filter</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('filters-modal')">Cancel</button>
+        <button class="btn-primary" onclick="saveFilters()">Save Filters</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PICKUP INSTRUCTIONS -->
+  <div class="modal-overlay" id="pickup-instructions-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Pickup Instructions</h2>
+        <button class="modal-close" onclick="closeModal('pickup-instructions-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group"><label>Panel Title</label><input type="text" id="pi-title" placeholder="e.g. Pickup Instructions"></div>
+        <div class="field-group"><label>Instructions</label><textarea id="pi-text" style="min-height:120px" placeholder="Pull up to the side entrance..."></textarea></div>
+        <div class="field-group">
+          <label>Image — optional</label>
+          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b></div>
+          <div class="img-drop-zone" id="pi-img-zone">
+            <label class="img-drop-empty" for="pi-img-file">
+              <div class="img-drop-icon">📷</div>
+              <div class="img-drop-text">Drag &amp; drop or <strong>tap to browse</strong></div>
+            </label>
+            <div class="img-drop-preview-wrap" style="display:none">
+              <img class="img-drop-preview">
+              <button type="button" class="img-drop-remove">✕</button>
+            </div>
+            <div class="img-drop-loading" style="display:none">Uploading...</div>
+            <div class="img-drop-or">— or paste a URL —</div>
+            <input type="text" class="img-drop-url" id="pi-img" placeholder="https://...">
+            <input type="file" id="pi-img-file" class="img-drop-file" accept="image/*">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('pickup-instructions-modal')">Cancel</button>
+        <button class="btn-primary" onclick="savePickupInstructions()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="modal-overlay" id="hours-modal">
+    <div class="modal schedule-modal">
+      <div class="modal-header">
+        <h2>Store Schedule</h2>
+        <button class="modal-close" onclick="closeModal('hours-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="sched-section">
+          <div class="sched-section-title">Weekly Defaults</div>
+          <div class="sched-hint">Click a day to toggle open/closed.</div>
+          <div class="weekly-row" id="weekly-defaults-row"></div>
+          <div id="weekly-hours-editor"></div>
+          <div class="slot-interval-row">
+            <label style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem;display:block;">Time Slot Interval</label>
+            <select id="sched-slot-mins">
+              <option value="0">None (customer picks any time)</option>
+              <option value="15">Every 15 minutes</option>
+              <option value="30">Every 30 minutes</option>
+              <option value="60">Every 1 hour</option>
+            </select>
+          </div>
+        </div>
+        <div class="sched-section">
+          <div class="sched-section-title">Calendar Overrides</div>
+          <div class="sched-hint">Tap a date to mark it open. Right-click or long-press to mark it closed.</div>
+          <div class="cal-nav">
+            <button onclick="shiftCalMonth(-1)">← Prev</button>
+            <span class="cal-nav-label" id="cal-month-label"></span>
+            <button onclick="shiftCalMonth(1)">Next →</button>
+          </div>
+          <div class="cal-weekdays" id="cal-weekdays"></div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="day-detail" id="day-detail">
+            <div class="day-detail-title" id="day-detail-title"></div>
+            <div class="day-detail-status">
+              <button id="day-detail-open-btn" onclick="setDayOverride(true)">Open</button>
+              <button id="day-detail-closed-btn" onclick="setDayOverride(false)">Closed</button>
+              <button onclick="clearDayOverride()" style="flex:0.6;font-size:.7rem;color:var(--muted);">Reset to default</button>
+            </div>
+            <div class="day-detail-hours" id="day-detail-hours">
+              <div><label>Opens</label><input type="time" id="day-detail-start" onchange="updateDayOverrideHours()"></div>
+              <div><label>Closes</label><input type="time" id="day-detail-end" onchange="updateDayOverrideHours()"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('hours-modal')">Cancel</button>
+        <button class="btn-primary" onclick="saveSchedule()">Save Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDERS PANEL -->
+  <div class="orders-overlay" id="orders-overlay" onclick="if(event.target===this)closeOrders()">
+    <div class="orders-panel">
+      <div class="orders-header">
+        <h2>📦 Live Orders</h2>
+        <button class="orders-header-close" onclick="closeOrders()">✕</button>
+      </div>
+      <div class="orders-tabs">
+        <button class="orders-tab active" data-filter="all" onclick="setOrderFilter('all')">All <span class="tab-count" id="tab-count-all"></span></button>
+        <button class="orders-tab" data-filter="new" onclick="setOrderFilter('new')">New <span class="tab-count" id="tab-count-new"></span></button>
+        <button class="orders-tab" data-filter="ready" onclick="setOrderFilter('ready')">Ready <span class="tab-count" id="tab-count-ready"></span></button>
+        <button class="orders-tab" data-filter="picked-up" onclick="setOrderFilter('picked-up')">Done <span class="tab-count" id="tab-count-picked-up"></span></button>
+        <button class="orders-tab" data-filter="cancelled" onclick="setOrderFilter('cancelled')">Cancelled <span class="tab-count" id="tab-count-cancelled"></span></button>
+      </div>
+      <div class="orders-search">
+        <input type="text" id="orders-search-input" placeholder="Search orders..." oninput="onOrderSearch(this.value)">
+      </div>
+      <div class="orders-list" id="orders-list"></div>
+    </div>
+  </div>
+
+  <!-- FINANCIALS PANEL -->
+  <div class="fin-overlay" id="fin-overlay" onclick="if(event.target===this)closeFinancials()">
+    <div class="fin-panel">
+      <div class="fin-header">
+        <h2>💰 Financial Breakdown</h2>
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <button class="fin-reset-btn" onclick="resetFinancials()">Reset All</button>
+          <button class="orders-header-close" onclick="closeFinancials()">✕</button>
+        </div>
+      </div>
+      <div class="fin-period-tabs">
+        <button class="fin-period-tab active" data-period="all" onclick="setFinPeriod('all')">All Time</button>
+        <button class="fin-period-tab" data-period="today" onclick="setFinPeriod('today')">Today</button>
+        <button class="fin-period-tab" data-period="week" onclick="setFinPeriod('week')">This Week</button>
+        <button class="fin-period-tab" data-period="month" onclick="setFinPeriod('month')">This Month</button>
+      </div>
+      <div class="fin-body" id="fin-body"></div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- SCRIPTS -->
+  <script src="js/shared.js"></script>
+  <script src="js/admin.js"></script>
+  <script>
+    // ── ADMIN PAGE EXTRAS ──
+
+    // Override completeLogin to show admin page and load data
+    const _origCompleteLogin = completeLogin;
+    function completeLogin() {
+      isAdmin = true;
+      document.body.classList.add('admin-mode');
+      loadAdminPageData();
+      connectSSE();
+    }
+
+    async function loadAdminPageData() {
+      try {
+        const [pRes, oRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/orders', { headers: authHeaders() })
+        ]);
+        if (pRes.ok) products = await pRes.json();
+        if (oRes.ok) adminOrders = await oRes.json();
+      } catch(e) {}
+      renderAdminStats();
+      renderAdminProductTable();
+      renderAdminRecentOrders();
+    }
+
+    function renderAdminStats() {
+      document.getElementById('stat-products').textContent = products.length;
+      const open = adminOrders.filter(o => o.status === 'new' || o.status === 'ready').length;
+      document.getElementById('stat-open-orders').textContent = open;
+      const rev = adminOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      document.getElementById('stat-revenue').textContent = '$' + rev.toFixed(2);
+      const today = new Date().toISOString().split('T')[0];
+      const info = getDayInfo(today);
+      const now = new Date();
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const liveOpen = info.open && nowMins >= parseHHMM(info.start) && nowMins < parseHHMM(info.end);
+      document.getElementById('stat-status').textContent = liveOpen ? '🟢 Open' : '🔴 Closed';
+      document.getElementById('stat-status').style.color = liveOpen ? '#16a34a' : '#dc2626';
+    }
+
+    function renderAdminProductTable() {
+      const tbody = document.getElementById('admin-product-tbody');
+      if (!products.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem;">No products yet. Add one above.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = products.map(p => {
+        const stockClass = p.qty === 0 ? 'stock-out' : (p.qty <= 2 ? 'stock-low' : 'stock-ok');
+        const stockLabel = p.qty == null ? '—' : p.qty;
+        return `<tr>
+          <td><img class="product-img" src="${esc(p.img)}" onerror="this.src='https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=80&q=60'"></td>
+          <td class="product-name">${esc(p.name)}</td>
+          <td style="color:var(--muted)">${esc(p.category || '—')}</td>
+          <td>$${parseFloat(p.price).toFixed(2)}</td>
+          <td style="color:var(--muted)">$${parseFloat(p.cost || 0).toFixed(2)}</td>
+          <td class="product-stock ${stockClass}">${stockLabel}</td>
+          <td><div class="tbl-actions">
+            <button class="tbl-btn" onclick="openProductModal(${p.id})">Edit</button>
+            <button class="tbl-btn danger" onclick="deleteProduct(${p.id})">Delete</button>
+          </div></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderAdminRecentOrders() {
+      const el = document.getElementById('admin-recent-orders');
+      const recent = [...adminOrders].sort((a,b) => b.id - a.id).slice(0, 8);
+      if (!recent.length) {
+        el.innerHTML = `<div class="mini-order-row"><span style="color:var(--muted);font-size:.85rem;">No orders yet.</span></div>`;
+        return;
+      }
+      el.innerHTML = recent.map(o => {
+        const status = o.status || 'new';
+        const statusLabel = status === 'picked-up' ? 'Done' : status.charAt(0).toUpperCase() + status.slice(1);
+        const time = new Date(o.createdAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+        return `<div class="mini-order-row">
+          <span class="mini-order-id">#${String(o.id).slice(-6)}</span>
+          <span class="mini-order-items">${o.items.map(i=>`${esc(i.name)} ×${i.qty}`).join(', ')}</span>
+          <span class="mini-order-meta">${esc(o.vehicle)} · ${time}</span>
+          <span class="order-status-badge ${status}" style="font-size:.65rem;">${statusLabel}</span>
+          <span class="mini-order-total">$${o.total}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // Re-render tables after product save/delete
+    const _origSaveProduct = saveProduct;
+    async function saveProduct() {
+      await _origSaveProduct.call(this);
+      renderAdminProductTable();
+      renderAdminStats();
+    }
+    const _origDeleteProduct = deleteProduct;
+    async function deleteProduct(id) {
+      await _origDeleteProduct.call(this, id);
+      renderAdminProductTable();
+      renderAdminStats();
+    }
+
+    // Handle new orders — refresh mini table
+    const _origHandleNewOrder = handleNewOrder;
+    function handleNewOrder(order) {
+      _origHandleNewOrder.call(this, order);
+      adminOrders.unshift(order);
+      renderAdminRecentOrders();
+      renderAdminStats();
+    }
+
+    // Override logout to go back to login gate
+    async function logout() {
+      try { await fetch('/api/logout', { method:'POST', headers: authHeaders() }); } catch(e) {}
+      adminToken = null;
+      localStorage.removeItem('pouches-admin-token');
+      isAdmin = false;
+      document.body.classList.remove('admin-mode');
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').classList.remove('show');
+    }
+
+    // On load — check existing session
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadData();
+      document.querySelectorAll('.modal-overlay').forEach(el => {
+        el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+      });
+      if (adminToken) {
+        try {
+          const res = await fetch('/api/session', { headers: authHeaders() });
+          const data = await res.json();
+          if (data.valid) completeLogin();
+          else { adminToken = null; localStorage.removeItem('pouches-admin-token'); }
+        } catch(e) { adminToken = null; localStorage.removeItem('pouches-admin-token'); }
+      }
+    });
+
+    // Override doLogin for admin page (no admin-bar, no grid render)
+    async function doLogin() {
+      const pw = document.getElementById('login-password').value;
+      try {
+        const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
+        const data = await res.json();
+        if (!res.ok) {
+          document.getElementById('login-error').textContent = data.error || 'Login failed';
+          document.getElementById('login-error').classList.add('show');
+          document.getElementById('login-password').value = '';
+          document.getElementById('login-password').focus();
+          return;
+        }
+        adminToken = data.token;
+        localStorage.setItem('pouches-admin-token', adminToken);
+        completeLogin();
+      } catch(e) {
+        document.getElementById('login-error').textContent = 'Network error';
+        document.getElementById('login-error').classList.add('show');
+      }
+    }
+  </script>
+</body>
+</html>
