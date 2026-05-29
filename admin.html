@@ -459,12 +459,40 @@
       }).join('');
     }
 
-    // Wrappers that refresh the table after save/delete
-    async function adminSaveProduct() {
-      await saveProduct();
-      renderAdminProductTable();
-      renderAdminStats();
-    }
+// Standalone saveProduct — reads plain URL input, no drop zone
+async function saveProduct() {
+  const name  = document.getElementById('edit-name').value.trim();
+  const desc  = document.getElementById('edit-desc').value.trim();
+  const price = parseFloat(document.getElementById('edit-price').value);
+  if (!name || !desc || isNaN(price)) { alert('Please fill in Name, Description, and Price.'); return; }
+  const updated = {
+    name,
+    desc,
+    price,
+    cost:     parseFloat(document.getElementById('edit-cost').value)  || 0,
+    badge:    document.getElementById('edit-badge').value.trim()      || null,
+    category: document.getElementById('edit-category').value.trim()   || '',
+    img:      document.getElementById('edit-img').value.trim()        || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
+    qty:      parseInt(document.getElementById('edit-qty').value)     || 0,
+    maxQty:   parseInt(document.getElementById('edit-max-qty').value) || null,
+    filters:  collectProductFilters(),
+  };
+  try {
+    const res = editingId
+      ? await fetch(`/api/products/${editingId}`, { method: 'PUT',  headers: authHeaders(), body: JSON.stringify(updated) })
+      : await fetch('/api/products',               { method: 'POST', headers: authHeaders(), body: JSON.stringify(updated) });
+    if (res.status === 401) { handleAuthFailure(); return; }
+    if (!res.ok) { const d = await res.json().catch(()=>({})); alert('Failed to save: ' + (d.error || res.status)); return; }
+    const pRes = await fetch('/api/products'); if (pRes.ok) products = await pRes.json();
+  } catch(e) { alert('Network error saving product.'); return; }
+  closeModal('product-modal');
+}
+
+async function adminSaveProduct() {
+  await saveProduct();
+  renderAdminProductTable();
+  renderAdminStats();
+}
 
     async function adminDeleteProduct(id) {
       await deleteProduct(id);
