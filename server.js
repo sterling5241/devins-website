@@ -42,20 +42,20 @@ async function query(sql, params) {
 // Create all tables on first run
 async function initDB() {
   await query(`
-    CREATE TABLE IF NOT EXISTS products (
-      id         SERIAL PRIMARY KEY,
-      name       TEXT    NOT NULL,
-      desc       TEXT    NOT NULL DEFAULT '',
-      price      NUMERIC(10,2) NOT NULL DEFAULT 0,
-      cost       NUMERIC(10,2) NOT NULL DEFAULT 0,
-      img        TEXT    NOT NULL DEFAULT '',
-      badge      TEXT,
-      category   TEXT    NOT NULL DEFAULT '',
-      qty        INTEGER NOT NULL DEFAULT 0,
-      max_qty    INTEGER,
-      filters    JSONB   NOT NULL DEFAULT '{}',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+CREATE TABLE IF NOT EXISTS products (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT    NOT NULL,
+  description TEXT    NOT NULL DEFAULT '',
+  price       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  cost        NUMERIC(10,2) NOT NULL DEFAULT 0,
+  img         TEXT    NOT NULL DEFAULT '',
+  badge       TEXT,
+  category    TEXT    NOT NULL DEFAULT '',
+  qty         INTEGER NOT NULL DEFAULT 0,
+  max_qty     INTEGER,
+  filters     JSONB   NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
   `);
 
   await query(`
