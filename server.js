@@ -195,7 +195,7 @@ function dbToProduct(row) {
   return {
     id:        row.id,
     name:      row.name,
-    desc:      row.desc,
+    desc:      row.description,
     price:     parseFloat(row.price),
     cost:      parseFloat(row.cost),
     img:       row.img,
@@ -220,7 +220,7 @@ app.post('/api/products', requireAdmin, async (req, res) => {
   if (!name || price == null) return res.status(400).json({ error: 'name and price required' });
   try {
     const r = await query(
-      `INSERT INTO products (name, "desc", price, cost, img, badge, category, qty, max_qty, filters)
+      `INSERT INTO products (name, description, price, cost, img, badge, category, qty, max_qty, filters)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [name, desc||'', price, cost||0, img||'', badge||null, category||'', qty??0, maxQty||null, JSON.stringify(filters||{})]
     );
@@ -236,7 +236,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
   try {
     const r = await query(
       `UPDATE products SET
-        name=$1, "desc"=$2, price=$3, cost=$4, img=$5, badge=$6,
+        name=$1, description=$2, price=$3, cost=$4, img=$5, badge=$6,
         category=$7, qty=$8, max_qty=$9, filters=$10
        WHERE id=$11 RETURNING *`,
       [name, desc||'', price, cost||0, img||'', badge||null, category||'', qty??0, maxQty||null, JSON.stringify(filters||{}), id]
