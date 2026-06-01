@@ -348,19 +348,14 @@ function closeConfirm() { document.getElementById('confirm-overlay').classList.r
 
 // ── PAGE INIT ──
 async function initShop() {
+  // index.html is customer-only — never activate admin mode here
+  adminToken = null;
+  isAdmin = false;
+
   renderHero(); renderGrid(); renderSlider();
   await loadData();
-  renderHero(); renderShopFilterBar(); renderGrid(); renderSlider();
+  renderHero(); renderGrid(); renderSlider();
   updateCartBtn(); connectSSE();
-
-  if (adminToken) {
-    try {
-      const res = await fetch('/api/session', { headers: authHeaders() });
-      const data = await res.json();
-      if (data.valid) completeLogin();
-      else { adminToken = null; localStorage.removeItem('pouches-admin-token'); }
-    } catch(e) { adminToken = null; localStorage.removeItem('pouches-admin-token'); }
-  }
 
   const confirmOverlay = document.getElementById('confirm-overlay');
   if (confirmOverlay) {
