@@ -51,7 +51,7 @@ async function initDB() {
     );
   `);
 
-  // Migration: rename "desc" column to description if it exists
+  // Migration: rename old "desc" column to description if it exists
   await query(`
     DO $$ BEGIN
       IF EXISTS (
@@ -90,7 +90,9 @@ async function initDB() {
       ('schedule',           '{"weekly":{"0":{"open":false,"start":"09:00","end":"17:00"},"1":{"open":true,"start":"09:00","end":"17:00"},"2":{"open":true,"start":"09:00","end":"17:00"},"3":{"open":true,"start":"09:00","end":"17:00"},"4":{"open":true,"start":"09:00","end":"17:00"},"5":{"open":true,"start":"09:00","end":"17:00"},"6":{"open":false,"start":"09:00","end":"17:00"}},"overrides":{},"slotMins":30}'::jsonb),
       ('pickupInstructions', '{"title":"Pickup Instructions","text":"","img":""}'::jsonb),
       ('filters',            '[]'::jsonb),
-      ('slides',             '[]'::jsonb)
+      ('slides',             '[]'::jsonb),
+      ('heroBanners',         '[]'::jsonb),
+      ('siteSettings',       '{"name":"The.Pouches","logoUrl":"","footerText":"All items sold as-is · Questions? Just reach out.","accentColor":"#c8522a"}'::jsonb)
     ON CONFLICT (key) DO NOTHING;
   `);
 
@@ -269,8 +271,8 @@ app.get('/api/config', async (req, res) => {
 });
 
 app.post('/api/config', requireAdmin, async (req, res) => {
-  const { hero, schedule, pickupInstructions, filters, slides } = req.body;
-  const updates = { hero, schedule, pickupInstructions, filters, slides };
+  const { hero, heroBanners, schedule, pickupInstructions, filters, slides, siteSettings } = req.body;
+  const updates = { hero, heroBanners, schedule, pickupInstructions, filters, slides, siteSettings };
   try {
     for (const [key, value] of Object.entries(updates)) {
       if (value === undefined) continue;
@@ -328,7 +330,7 @@ app.post('/api/order', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,'new') RETURNING *`,
       [JSON.stringify(items), vehicle, plate, dateStr, total]
     );
-    const order      = dbToOrder(r.rows[0]);
+    const order       = dbToOrder(r.rows[0]);
     const allProducts = (await query('SELECT * FROM products ORDER BY id')).rows.map(dbToProduct);
     const allOrders   = (await query('SELECT * FROM orders ORDER BY id DESC')).rows.map(dbToOrder);
     broadcastSSE('products', allProducts);

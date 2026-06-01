@@ -139,32 +139,21 @@
     </div>
   </div>
 
-  <!-- HERO EDIT -->
+  <!-- BANNER EDITOR -->
   <div class="modal-overlay" id="hero-modal">
-    <div class="modal">
-      <div class="modal-header"><h2>Edit Banner</h2><button class="modal-close" onclick="cancelHeroEdit()">×</button></div>
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header"><h2>🖼 Edit Banners</h2><button class="modal-close" onclick="cancelHeroEdit()">×</button></div>
       <div class="modal-body">
-        <div class="field-group">
-          <label>Background Image — optional</label>
-          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b></div>
-          <div class="img-drop-zone" id="edit-hero-bg-zone">
-            <label class="img-drop-empty" for="edit-hero-bg-file"><div class="img-drop-icon">🖼</div><div class="img-drop-text">Drag &amp; drop or <strong>tap to browse</strong></div></label>
-            <div class="img-drop-preview-wrap" style="display:none"><img class="img-drop-preview"><button type="button" class="img-drop-remove">✕</button></div>
-            <div class="img-drop-loading" style="display:none">Uploading...</div>
-            <div class="img-drop-or">— or paste a URL —</div>
-            <input type="text" class="img-drop-url" id="edit-hero-bg" placeholder="https://...">
-            <input type="file" id="edit-hero-bg-file" class="img-drop-file" accept="image/*">
-          </div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem;">Add one or more banners — they rotate automatically. Each banner is just a background image and color. The schedule widget always stays visible.</div>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+          <input type="text" id="banner-folder-url" placeholder="Paste GitHub folder URL to import all images..."
+            style="flex:1;min-width:180px;font-family:'DM Sans',sans-serif;font-size:.85rem;border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;background:var(--warm-white);">
+          <button class="slide-btn" onclick="importBannerFolder()" style="white-space:nowrap;padding:.5rem .9rem;">⬇ Import Folder</button>
         </div>
-        <div class="field-group">
-          <label>Background Adjustments</label>
-          <div class="slider-row"><label>Size</label><input type="range" id="edit-hero-bg-size" min="10" max="300" step="1" value="100" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-size-val">100%</span></div>
-          <div class="slider-row"><label>Position X</label><input type="range" id="edit-hero-bg-posx" min="-100" max="100" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-posx-val">0%</span></div>
-          <div class="slider-row"><label>Position Y</label><input type="range" id="edit-hero-bg-posy" min="-100" max="100" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-posy-val">0%</span></div>
-          <div class="slider-row"><label>Rotation</label><input type="range" id="edit-hero-bg-rot" min="-180" max="180" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-rot-val">0°</span></div>
-        </div>
+        <div id="banner-editor-list"></div>
+        <button class="slide-add-btn" onclick="addBanner()" style="margin-top:.5rem;">+ Add Banner</button>
       </div>
-      <div class="modal-footer"><button class="btn-secondary" onclick="cancelHeroEdit()">Cancel</button><button class="btn-primary" onclick="saveHero()">Save Changes</button></div>
+      <div class="modal-footer"><button class="btn-secondary" onclick="cancelHeroEdit()">Cancel</button><button class="btn-primary" onclick="saveHero()">Save Banners</button></div>
     </div>
   </div>
 
@@ -173,6 +162,11 @@
     <div class="modal slider-modal">
       <div class="modal-header"><h2>Edit Slider</h2><button class="modal-close" onclick="cancelSliderEdit()">×</button></div>
       <div class="modal-body">
+        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+          <input type="text" id="slider-folder-url" placeholder="Paste GitHub folder URL to import all images at once..."
+            style="flex:1;min-width:200px;font-family:'DM Sans',sans-serif;font-size:.85rem;border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;background:var(--warm-white);">
+          <button class="slide-btn" onclick="importSliderFolder()" style="white-space:nowrap;padding:.5rem .9rem;">⬇ Import Folder</button>
+        </div>
         <div id="slider-editor-list"></div>
         <button class="slide-add-btn" onclick="addSlide()">+ Add Slide</button>
       </div>

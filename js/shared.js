@@ -8,7 +8,13 @@ let sliderSlides = [];
 let filterDefs = [];
 let activeFilters = {};
 
+let siteSettings = { name: 'The.Pouches', logoUrl: '', footerText: 'All items sold as-is · Questions? Just reach out.', accentColor: '#c8522a' };
+
 let heroData = { bg: '', bgSize: 100, bgPosX: 0, bgPosY: 0, bgRotation: 0, bgFill: '', bgPosVer: 2 };
+let heroBanners = []; // array of { bg, bgColor, textColor, content, duration }
+let heroBannerIndex = 0;
+let heroBannerTimer = null;
+const HERO_BANNER_DEFAULT_MS = 6000;
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const DAY_SHORT = ['Su','Mo','Tu','We','Th','Fr','Sa'];
@@ -44,7 +50,7 @@ async function saveConfig() {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ hero: heroData, schedule, pickupInstructions, filters: filterDefs, slides: sliderSlides })
+      body: JSON.stringify({ hero: heroData, heroBanners, schedule, pickupInstructions, filters: filterDefs, slides: sliderSlides })
     });
     if (res.status === 401) { handleAuthFailure(); return false; }
     if (!res.ok) { alert('Failed to save changes (' + res.status + ').'); return false; }
@@ -69,6 +75,7 @@ async function loadData() {
           heroData.bgPosVer = 2;
         }
       }
+      if (Array.isArray(config.heroBanners)) heroBanners = config.heroBanners;
       if (config.schedule) schedule = config.schedule;
       if (!config.schedule && config.businessHours) {
         const bh = config.businessHours;
@@ -222,8 +229,42 @@ if (typeof ResizeObserver !== 'undefined') {
   });
 }
 
+// ── MULTI-BANNER ROTATION (background only, schedule widget stays) ──
+function applyHeroBanner(banner) {
+  // Only swap the background image/color — schedule widget is untouched
+  const heroEl = document.querySelector('.hero');
+  if (!heroEl) return;
+  heroEl.style.backgroundColor = banner.bgColor || '';
+  applyHeroBg(banner.bg || '', banner.bgSize ?? 100, banner.bgPosX ?? 0, banner.bgPosY ?? 0, banner.bgRotation ?? 0, banner.bgColor || '');
+}
+
+function startHeroBannerRotation() {
+  stopHeroBannerRotation();
+  if (!heroBanners.length) return;
+  heroBannerIndex = 0;
+  applyHeroBanner(heroBanners[0]);
+  if (heroBanners.length < 2) return;
+  function next() {
+    heroBannerIndex = (heroBannerIndex + 1) % heroBanners.length;
+    applyHeroBanner(heroBanners[heroBannerIndex]);
+    const dur = (heroBanners[heroBannerIndex].duration || HERO_BANNER_DEFAULT_MS / 1000) * 1000;
+    heroBannerTimer = setTimeout(next, dur);
+  }
+  const firstDur = (heroBanners[0].duration || HERO_BANNER_DEFAULT_MS / 1000) * 1000;
+  heroBannerTimer = setTimeout(next, firstDur);
+}
+
+function stopHeroBannerRotation() {
+  if (heroBannerTimer) { clearTimeout(heroBannerTimer); heroBannerTimer = null; }
+}
+
 function renderHero() {
-  applyHeroBg(heroData.bg || '', heroData.bgSize ?? 100, heroData.bgPosX ?? 0, heroData.bgPosY ?? 0, heroData.bgRotation ?? 0, heroData.bgFill || '');
+  if (heroBanners.length) {
+    startHeroBannerRotation();
+  } else {
+    // fallback to legacy single heroData
+    applyHeroBg(heroData.bg || '', heroData.bgSize ?? 100, heroData.bgPosX ?? 0, heroData.bgPosY ?? 0, heroData.bgRotation ?? 0, heroData.bgFill || '');
+  }
   renderHeroSchedule();
 }
 
@@ -329,6 +370,51 @@ function stopSliderAutoplay() {
   if (sliderTimer) { clearInterval(sliderTimer); sliderTimer = null; }
 }
 
+
+// ── GITHUB URL CONVERTER ──
+function toRawUrl(url) {
+  if (!url) return url;
+  // https://github.com/user/repo/blob/branch/path.jpg → raw
+  url = url.replace(
+    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/,
+    'https://raw.githubusercontent.com/$1/$2/$3'
+  );
+  // https://github.com/user/repo/main/path.jpg (no blob) → raw
+  url = url.replace(
+    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/(main|master)\/(.+)$/,
+    'https://raw.githubusercontent.com/$1/$2/$3/$4'
+  );
+  return url;
+}
+
+
+// ── GITHUB FOLDER FETCHER ──
+// Converts a github.com folder URL to API URL and fetches all images
+async function fetchGithubFolder(url) {
+  // Match: https://github.com/user/repo/tree/branch/path
+  //     or https://github.com/user/repo/branch/path (no tree)
+  let m = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:tree\/)?([^/]+)\/(.+)$/);
+  if (!m) return null;
+  const [, user, repo, branch, path] = m;
+  const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${path}?ref=${branch}`;
+  try {
+    const res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+    if (!res.ok) return null;
+    const files = await res.json();
+    if (!Array.isArray(files)) return null;
+    const imageExts = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
+    return files
+      .filter(f => f.type === 'file' && imageExts.test(f.name))
+      .map(f => f.download_url);
+  } catch(e) { return null; }
+}
+
+function isGithubFolderUrl(url) {
+  return /^https:\/\/github\.com\/[^/]+\/[^/]+\/(tree\/)?[^/]+\/.+[^.]\s*$/.test(url.trim())
+    && !/\.(jpg|jpeg|png|gif|webp|svg|pdf|zip)$/i.test(url.trim());
+}
+
+
 // ── IMAGE DROP ZONE ──
 function setupDropZone(zoneId, urlInputId) {
   const zone = document.getElementById(zoneId);
@@ -365,11 +451,28 @@ function setupDropZone(zoneId, urlInputId) {
   let urlDebounce = null;
   urlInput.addEventListener('input', () => {
     clearTimeout(urlDebounce);
-    urlDebounce = setTimeout(() => {
-      const url = urlInput.value.trim();
-      if (url && (url.startsWith('http') || url.startsWith('/uploads'))) showPreview(url);
-      else if (!url) showState('empty');
-    }, 400);
+    urlDebounce = setTimeout(async () => {
+      const raw = urlInput.value.trim();
+      if (!raw) { showState('empty'); return; }
+      // GitHub folder URL — fetch all images, use first
+      if (isGithubFolderUrl(raw)) {
+        showState('loading');
+        const imgs = await fetchGithubFolder(raw);
+        if (imgs && imgs.length) {
+          urlInput.value = imgs[0];
+          showPreview(imgs[0]);
+          // If this zone has a folder callback (slider), fire it with all images
+          if (zone._onFolderImages) zone._onFolderImages(imgs);
+        } else {
+          showState('empty');
+          alert('No images found in that folder, or the repo is private.');
+        }
+        return;
+      }
+      const url = toRawUrl(raw); urlInput.value = url;
+      if (url.startsWith('http') || url.startsWith('/uploads')) showPreview(url);
+      else showState('empty');
+    }, 600);
   });
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
@@ -573,16 +676,4 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
   });
 
-  // Triple-click logo to open admin login
-  let logoClicks = 0, logoTimer;
-  const logoLink = document.getElementById('logo-link');
-  if (logoLink) {
-    logoLink.addEventListener('click', e => {
-      e.preventDefault();
-      logoClicks++;
-      clearTimeout(logoTimer);
-      logoTimer = setTimeout(() => { logoClicks = 0; }, 600);
-      if (logoClicks >= 3) { logoClicks = 0; if (!isAdmin) openLoginModal(); }
-    });
-  }
 });

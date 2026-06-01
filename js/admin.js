@@ -520,73 +520,112 @@ function saveSchedule() {
   saveData(); closeModal('hours-modal'); renderHeroSchedule();
 }
 
-// ── HERO EDIT ──
-async function pickEdgeColorFromImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image(); img.crossOrigin = 'anonymous';
-    img.onerror = () => reject(new Error('image load failed'));
-    img.onload = () => {
-      try {
-        const W = Math.min(img.naturalWidth, 200), H = Math.min(img.naturalHeight, 200);
-        if (!W || !H) return reject(new Error('zero-size image'));
-        const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
-        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, W, H);
-        const data = ctx.getImageData(0, 0, W, H).data;
-        let r=0, g=0, b=0, n=0;
-        for (let x=0;x<W;x++){const i=x*4;r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
-        for (let x=0;x<W;x++){const i=((H-1)*W+x)*4;r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
-        for (let y=1;y<H-1;y++){const i=(y*W)*4;r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
-        for (let y=1;y<H-1;y++){const i=(y*W+(W-1))*4;r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
-        resolve(`rgb(${Math.round(r/n)}, ${Math.round(g/n)}, ${Math.round(b/n)})`);
-      } catch(e) { reject(e); }
-    };
-    img.src = url;
+// ── HERO / BANNER EDITOR ──
+let editingBanners = [];
+
+function openHeroModal() {
+  editingBanners = JSON.parse(JSON.stringify(heroBanners.length ? heroBanners : []));
+  renderBannerEditor();
+  openModal('hero-modal');
+}
+
+function cancelHeroEdit() {
+  closeModal('hero-modal');
+  renderHero();
+}
+
+async function saveHero() {
+  collectBannersFromDOM();
+  heroBanners = editingBanners;
+  // also clear legacy heroData bg so it doesn't override
+  heroData.bg = '';
+  const ok = await saveConfig();
+  if (ok === false) return;
+  renderHero();
+  closeModal('hero-modal');
+}
+
+function collectBannersFromDOM() {
+  editingBanners.forEach((b, idx) => {
+    const card = document.querySelector(`.banner-editor-card[data-idx="${idx}"]`);
+    if (!card) return;
+    b.bg = toRawUrl(card.querySelector('.banner-img-url').value.trim());
+    b.bgColor = card.querySelector('.banner-bg-color').value;
+    b.duration = parseFloat(card.querySelector('.banner-duration').value) || 6;
   });
 }
 
-async function autoSampleHeroFill(url) {
-  if (!url) { heroEditFill = ''; updateHeroBgPreview(); return; }
-  try { heroEditFill = await pickEdgeColorFromImage(url); } catch(e) { heroEditFill = ''; }
-  updateHeroBgPreview();
+function addBanner() {
+  collectBannersFromDOM();
+  editingBanners.push({ bg: '', bgColor: '#1a1612', duration: 6 });
+  renderBannerEditor();
 }
 
-function updateHeroBgPreview() {
-  const size = parseFloat(document.getElementById('edit-hero-bg-size').value);
-  const px = parseFloat(document.getElementById('edit-hero-bg-posx').value);
-  const py = parseFloat(document.getElementById('edit-hero-bg-posy').value);
-  const rot = parseFloat(document.getElementById('edit-hero-bg-rot').value);
-  document.getElementById('edit-hero-bg-size-val').textContent = size + '%';
-  document.getElementById('edit-hero-bg-posx-val').textContent = px + '%';
-  document.getElementById('edit-hero-bg-posy-val').textContent = py + '%';
-  document.getElementById('edit-hero-bg-rot-val').textContent = rot + '°';
-  applyHeroBg(getDropZoneValue('edit-hero-bg-zone') || '', size, px, py, rot, heroEditFill);
+function deleteBanner(idx) {
+  collectBannersFromDOM();
+  editingBanners.splice(idx, 1);
+  renderBannerEditor();
 }
 
-function openHeroModal() {
-  setupDropZone('edit-hero-bg-zone', 'edit-hero-bg');
-  const zone = document.getElementById('edit-hero-bg-zone');
-  if (zone && !zone._heroListenerAttached) {
-    zone.addEventListener('imageChanged', (e) => autoSampleHeroFill(e.detail && e.detail.url || ''));
-    zone._heroListenerAttached = true;
+function moveBanner(idx, delta) {
+  collectBannersFromDOM();
+  const ni = idx + delta;
+  if (ni < 0 || ni >= editingBanners.length) return;
+  const tmp = editingBanners[idx]; editingBanners[idx] = editingBanners[ni]; editingBanners[ni] = tmp;
+  renderBannerEditor();
+}
+
+async function importBannerFolder() {
+  const url = document.getElementById('banner-folder-url').value.trim();
+  if (!url) { alert('Paste a GitHub folder URL first.'); return; }
+  document.getElementById('banner-folder-url').value = '';
+  const imgs = await fetchGithubFolder(url);
+  if (!imgs || !imgs.length) { alert('No images found in that folder.'); return; }
+  collectBannersFromDOM();
+  imgs.forEach(imgUrl => {
+    editingBanners.push({ bg: imgUrl, bgColor: '#1a1612', duration: 6 });
+  });
+  renderBannerEditor();
+}
+
+function renderBannerEditor() {
+  const list = document.getElementById('banner-editor-list');
+  if (!list) return;
+  if (!editingBanners.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.88rem;padding:1rem 0;">No banners yet. Add one below.</div>';
+    return;
   }
-  heroEditFill = heroData.bgFill || '';
-  setDropZoneValue('edit-hero-bg-zone', heroData.bg || '');
-  document.getElementById('edit-hero-bg-size').value = heroData.bgSize ?? 100;
-  document.getElementById('edit-hero-bg-posx').value = heroData.bgPosX ?? 0;
-  document.getElementById('edit-hero-bg-posy').value = heroData.bgPosY ?? 0;
-  document.getElementById('edit-hero-bg-rot').value = heroData.bgRotation ?? 0;
-  updateHeroBgPreview(); openModal('hero-modal');
+  list.innerHTML = editingBanners.map((b, idx) => `
+    <div class="banner-editor-card" data-idx="${idx}" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:.8rem;margin-bottom:.6rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+        <span style="font-size:.85rem;font-weight:600;color:var(--ink);">Banner ${idx + 1}</span>
+        <div style="display:flex;gap:.3rem;">
+          <button class="slide-btn" onclick="moveBanner(${idx},-1)" ${idx===0?'disabled':''}>↑</button>
+          <button class="slide-btn" onclick="moveBanner(${idx},1)" ${idx===editingBanners.length-1?'disabled':''}>↓</button>
+          <button class="slide-btn danger" onclick="deleteBanner(${idx})">Delete</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:end;">
+        <div>
+          <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem;">Image URL</label>
+          <input type="text" class="banner-img-url" placeholder="https://... or GitHub folder URL"
+            value="${esc(b.bg||'')}"
+            style="width:100%;font-family:'DM Sans',sans-serif;font-size:.88rem;border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;background:var(--warm-white);">
+        </div>
+        <div>
+          <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem;">BG Color</label>
+          <input type="color" class="banner-bg-color" value="${esc(b.bgColor||'#1a1612')}"
+            style="width:44px;height:36px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:2px;">
+        </div>
+        <div>
+          <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem;">Secs</label>
+          <input type="number" class="banner-duration" value="${b.duration||6}" min="2" max="60"
+            style="width:56px;font-family:'DM Sans',sans-serif;font-size:.88rem;border:1px solid var(--border);border-radius:4px;padding:.5rem .4rem;text-align:center;">
+        </div>
+      </div>
+      ${b.bg ? `<img src="${esc(toRawUrl(b.bg))}" style="margin-top:.5rem;width:100%;height:60px;object-fit:cover;border-radius:4px;display:block;" onerror="this.style.display='none'">` : ''}
+    </div>`).join('');
 }
-function saveHero() {
-  heroData.bg = getDropZoneValue('edit-hero-bg-zone') || '';
-  heroData.bgSize = parseFloat(document.getElementById('edit-hero-bg-size').value) || 100;
-  heroData.bgPosX = parseFloat(document.getElementById('edit-hero-bg-posx').value) || 0;
-  heroData.bgPosY = parseFloat(document.getElementById('edit-hero-bg-posy').value) || 0;
-  heroData.bgRotation = parseFloat(document.getElementById('edit-hero-bg-rot').value) || 0;
-  heroData.bgFill = heroEditFill || '';
-  renderHero(); saveData(); closeModal('hero-modal');
-}
-function cancelHeroEdit() { closeModal('hero-modal'); renderHero(); }
 
 // ── SLIDER EDITOR ──
 function openSliderModal() { editingSlides = JSON.parse(JSON.stringify(sliderSlides || [])); renderSliderEditor(); openModal('slider-modal'); }
@@ -615,6 +654,23 @@ function collectEditingSlidesFromDOM() {
 function addSlide() {
   collectEditingSlidesFromDOM();
   editingSlides.push({ id: 's' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), bg: '', bgColor: '#1a1612', textColor: '#ffffff', content: '<h1>New slide</h1><p>Click here to edit.</p>' });
+  renderSliderEditor();
+}
+
+async function importSliderFolder() {
+  const url = document.getElementById('slider-folder-url').value.trim();
+  if (!url) { alert('Paste a GitHub folder URL first.'); return; }
+  document.getElementById('slider-folder-url').value = '';
+  await addSlidesFromFolder(url);
+}
+
+async function addSlidesFromFolder(folderUrl) {
+  const imgs = await fetchGithubFolder(folderUrl);
+  if (!imgs || !imgs.length) { alert('No images found in that folder.'); return; }
+  collectEditingSlidesFromDOM();
+  imgs.forEach(url => {
+    editingSlides.push({ id: 's' + Date.now() + '-' + Math.random().toString(36).slice(2,6), bg: url, bgColor: '#1a1612', textColor: '#ffffff', content: '' });
+  });
   renderSliderEditor();
 }
 function deleteSlide(idx) { if (!confirm('Delete this slide?')) return; collectEditingSlidesFromDOM(); editingSlides.splice(idx, 1); renderSliderEditor(); }
@@ -715,6 +771,26 @@ function openProductModal(id = null) {
     ['edit-name','edit-desc','edit-price','edit-cost','edit-badge','edit-category','edit-qty','edit-max-qty','edit-img'].forEach(i => { const el = document.getElementById(i); if(el) el.value = ''; });
   }
   openModal('product-modal');
+  // Wire folder auto-fetch into image URL field
+  setTimeout(() => {
+    const imgField = document.getElementById('edit-img');
+    if (imgField && !imgField._folderWired) {
+      imgField._folderWired = true;
+      let t;
+      imgField.addEventListener('input', () => {
+        clearTimeout(t);
+        t = setTimeout(async () => {
+          const val = imgField.value.trim();
+          if (isGithubFolderUrl(val)) {
+            const imgs = await fetchGithubFolder(val);
+            if (imgs && imgs.length) { imgField.value = imgs[0]; }
+          } else {
+            imgField.value = toRawUrl(val);
+          }
+        }, 600);
+      });
+    }
+  }, 100);
 }
 
 async function saveProduct() {
@@ -727,7 +803,7 @@ async function saveProduct() {
     cost:     parseFloat(document.getElementById('edit-cost').value)  || 0,
     badge:    document.getElementById('edit-badge').value.trim()      || null,
     category: document.getElementById('edit-category').value.trim()   || '',
-    img:      document.getElementById('edit-img').value.trim()        || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
+    img: toRawUrl(document.getElementById('edit-img').value.trim())        || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
     qty:      parseInt(document.getElementById('edit-qty').value)     || 0,
     maxQty:   parseInt(document.getElementById('edit-max-qty').value) || null,
     filters:  {},
