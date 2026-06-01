@@ -5,7 +5,6 @@ let orderSearchQuery = '';
 let newOrderCount = 0;
 let finPeriod = 'all';
 let editingId = null;
-let filtersEditing = [];
 let editingSlides = [];
 let tempSchedule = null;
 let calMonth = new Date().getMonth();
@@ -31,9 +30,9 @@ function onOrderSearch(val) { orderSearchQuery = val.toLowerCase().trim(); rende
 
 function renderOrders() {
   const list = document.getElementById('orders-list');
-  const counts = { all: adminOrders.length, new: 0, ready: 0, 'picked-up': 0, cancelled: 0 };
+  const counts = { all: adminOrders.length, new: 0, 'picked-up': 0, cancelled: 0 };
   adminOrders.forEach(o => { const s = o.status || 'new'; if (counts[s] !== undefined) counts[s]++; });
-  ['all','new','ready','picked-up','cancelled'].forEach(k => {
+  ['all','new','picked-up','cancelled'].forEach(k => {
     const el = document.getElementById('tab-count-' + k);
     if (el) el.textContent = counts[k] || '';
   });
@@ -52,7 +51,7 @@ function renderOrders() {
   }
   list.innerHTML = filtered.map(o => {
     const status = o.status || 'new';
-    const statusLabel = status === 'picked-up' ? 'Picked Up' : status.charAt(0).toUpperCase() + status.slice(1);
+    const statusLabel = status === 'picked-up' ? 'Done' : status.charAt(0).toUpperCase() + status.slice(1);
     const time = new Date(o.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     const items = o.items.map(i => `<div class="item-line"><span>${esc(i.name)} × ${i.qty}</span><span>$${(i.price * i.qty).toFixed(2)}</span></div>`).join('');
     let actions = '';
@@ -61,12 +60,9 @@ function renderOrders() {
     } else if (status === 'cancelled') {
       actions = `<div style="font-size:.7rem;color:var(--muted);text-align:center;width:100%">Cancelled${o.cancelledAt ? ' · ' + new Date(o.cancelledAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''}</div>`;
     } else {
-      const stepBtn = status === 'ready'
-        ? `<button class="order-action-btn" onclick="updateOrderStatus(${o.id}, 'new')">Back to New</button>`
-        : `<button class="order-action-btn primary" onclick="updateOrderStatus(${o.id}, 'ready')">Mark Ready</button>`;
-      actions = `${stepBtn}
-        <button class="order-action-btn success" onclick="updateOrderStatus(${o.id}, 'picked-up')">Finished</button>
-        <button class="order-action-btn danger" onclick="revertOrder(${o.id})">Cancel</button>`;
+      actions = `
+        <button class="order-action-btn success" onclick="updateOrderStatus(${o.id}, 'picked-up')">✓ Done</button>
+        <button class="order-action-btn danger" onclick="revertOrder(${o.id})">✕ Cancel</button>`;
     }
     return `
       <div class="${status === 'cancelled' ? 'order-card cancelled-card' : 'order-card'}" id="order-${o.id}">
@@ -162,25 +158,25 @@ function getFilteredOrders() {
   });
 }
 
-function renderFinancials() {
-  const body = document.getElementById('fin-body');
+function exportFinancials() {
   const orders = getFilteredOrders();
-  const cancelled = adminOrders.filter(o => o.status === 'cancelled');
   const periodLabel = { all: 'All Time', today: 'Today', week: 'This Week', month: 'This Month' }[finPeriod];
+  const now = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+
   const costLookup = {};
   products.forEach(p => { costLookup[p.id] = parseFloat(p.cost) || 0; costLookup[p.name] = parseFloat(p.cost) || 0; });
   function itemCost(i) {
     if (i.cost != null && i.cost !== '') return parseFloat(i.cost) || 0;
     return costLookup[i.id] ?? costLookup[i.name] ?? 0;
   }
+
   const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total), 0);
-  const totalOrders = orders.length;
-  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const totalItems = orders.reduce((s, o) => s + o.items.reduce((s2, i) => s2 + i.qty, 0), 0);
   const totalCost = orders.reduce((s, o) => s + o.items.reduce((s2, i) => s2 + itemCost(i) * i.qty, 0), 0);
   const totalProfit = totalRevenue - totalCost;
-  const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-  const cancelledRevenue = cancelled.reduce((s, o) => s + parseFloat(o.total), 0);
+  const totalItems = orders.reduce((s, o) => s + o.items.reduce((s2, i) => s2 + i.qty, 0), 0);
+  const avgOrder = orders.length > 0 ? totalRevenue / orders.length : 0;
+  const cancelled = adminOrders.filter(o => o.status === 'cancelled');
+
   const productMap = {};
   orders.forEach(o => {
     o.items.forEach(i => {
@@ -190,49 +186,180 @@ function renderFinancials() {
       productMap[i.name].cost += itemCost(i) * i.qty;
     });
   });
-  const productList = Object.values(productMap).map(p => ({ ...p, profit: p.revenue - p.cost, margin: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0 })).sort((a, b) => b.revenue - a.revenue);
+  const productList = Object.values(productMap).sort((a, b) => b.revenue - a.revenue);
+
+  let csv = `The.Pouches — Financial Report\n`;
+  csv += `Period: ${periodLabel}\n`;
+  csv += `Generated: ${now}\n\n`;
+  csv += `SUMMARY\n`;
+  csv += `Revenue,$${totalRevenue.toFixed(2)}\n`;
+  csv += `Cost (COGS),$${totalCost.toFixed(2)}\n`;
+  csv += `Profit,$${totalProfit.toFixed(2)}\n`;
+  csv += `Margin,${totalRevenue > 0 ? ((totalProfit/totalRevenue)*100).toFixed(1) : 0}%\n`;
+  csv += `Orders,${orders.length}\n`;
+  csv += `Items Sold,${totalItems}\n`;
+  csv += `Avg Order Value,$${avgOrder.toFixed(2)}\n`;
+  csv += `Cancelled Orders,${cancelled.length}\n\n`;
+  csv += `PRODUCT BREAKDOWN\n`;
+  csv += `Product,Qty,Revenue,Cost,Profit,Margin\n`;
+  productList.forEach(p => {
+    const profit = p.revenue - p.cost;
+    const margin = p.revenue > 0 ? ((profit/p.revenue)*100).toFixed(1) : 0;
+    csv += `"${p.name}",${p.qty},$${p.revenue.toFixed(2)},$${p.cost.toFixed(2)},$${profit.toFixed(2)},${margin}%\n`;
+  });
+  csv += `\nORDER LOG\n`;
+  csv += `Order ID,Date,Items,Vehicle,Plate,Total,Status\n`;
+  [...orders, ...cancelled].sort((a,b) => b.id - a.id).forEach(o => {
+    const time = new Date(o.createdAt).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+    const itemStr = o.items.map(i => `${i.name} x${i.qty}`).join('; ');
+    csv += `#${String(o.id).slice(-6)},"${time}","${itemStr}","${o.vehicle}","${o.plate.toUpperCase()}","$${o.total}","${o.status}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pouches-report-${finPeriod}-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderFinancials() {
+  const body = document.getElementById('fin-body');
+  const orders = getFilteredOrders();
+  const cancelled = adminOrders.filter(o => o.status === 'cancelled');
+  const periodLabel = { all: 'All Time', today: 'Today', week: 'This Week', month: 'This Month' }[finPeriod];
+  const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const costLookup = {};
+  products.forEach(p => { costLookup[p.id] = parseFloat(p.cost) || 0; costLookup[p.name] = parseFloat(p.cost) || 0; });
+  function itemCost(i) {
+    if (i.cost != null && i.cost !== '') return parseFloat(i.cost) || 0;
+    return costLookup[i.id] ?? costLookup[i.name] ?? 0;
+  }
+
+  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total), 0);
+  const totalOrders = orders.length;
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const totalItems = orders.reduce((s, o) => s + o.items.reduce((s2, i) => s2 + i.qty, 0), 0);
+  const totalCost = orders.reduce((s, o) => s + o.items.reduce((s2, i) => s2 + itemCost(i) * i.qty, 0), 0);
+  const totalProfit = totalRevenue - totalCost;
+  const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  const cancelledRevenue = cancelled.reduce((s, o) => s + parseFloat(o.total), 0);
+
+  const productMap = {};
+  orders.forEach(o => {
+    o.items.forEach(i => {
+      if (!productMap[i.name]) productMap[i.name] = { name: i.name, qty: 0, revenue: 0, cost: 0 };
+      productMap[i.name].qty += i.qty;
+      productMap[i.name].revenue += i.price * i.qty;
+      productMap[i.name].cost += itemCost(i) * i.qty;
+    });
+  });
+  const productList = Object.values(productMap)
+    .map(p => ({ ...p, profit: p.revenue - p.cost, margin: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0 }))
+    .sort((a, b) => b.revenue - a.revenue);
   const maxRevenue = productList.length ? productList[0].revenue : 0;
-  const statusCounts = { new: 0, ready: 0, 'picked-up': 0 };
-  orders.forEach(o => { const s = o.status || 'new'; if (statusCounts[s] !== undefined) statusCounts[s]++; });
-  const recent = [...orders].sort((a, b) => b.id - a.id).slice(0, 10);
-  const profitColor = totalProfit >= 0 ? 'color:#15803d;' : 'color:#dc2626;';
+  const profitColor = totalProfit >= 0 ? '#15803d' : '#dc2626';
+
+  const allForLog = [...orders, ...cancelled].sort((a, b) => b.id - a.id);
 
   body.innerHTML = `
-    <div class="fin-stats">
-      <div class="fin-stat accent"><div class="fin-stat-label">Revenue</div><div class="fin-stat-value">$${totalRevenue.toFixed(2)}</div><div class="fin-stat-sub">${periodLabel}</div></div>
-      <div class="fin-stat"><div class="fin-stat-label">Profit</div><div class="fin-stat-value" style="${profitColor}">$${totalProfit.toFixed(2)}</div><div class="fin-stat-sub">${avgMargin.toFixed(1)}% margin</div></div>
-      <div class="fin-stat"><div class="fin-stat-label">Cost (COGS)</div><div class="fin-stat-value">$${totalCost.toFixed(2)}</div></div>
-      <div class="fin-stat"><div class="fin-stat-label">Orders</div><div class="fin-stat-value">${totalOrders}</div><div class="fin-stat-sub">${statusCounts.new} new · ${statusCounts.ready} ready · ${statusCounts['picked-up']} done</div></div>
-      <div class="fin-stat"><div class="fin-stat-label">Avg Order</div><div class="fin-stat-value">$${avgOrder.toFixed(2)}</div></div>
-      <div class="fin-stat"><div class="fin-stat-label">Items Sold</div><div class="fin-stat-value">${totalItems}</div></div>
-      ${cancelled.length ? `<div class="fin-stat wide" style="border-color:#fee2e2;"><div class="fin-stat-label" style="color:#dc2626;">Cancelled Orders</div><div class="fin-stat-value" style="color:#dc2626;font-size:1.1rem;">${cancelled.length} orders · $${cancelledRevenue.toFixed(2)} reversed</div></div>` : ''}
+    <!-- Report header -->
+    <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--ink);">Financial Report — ${periodLabel}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.15rem;">Generated ${now}</div>
+      </div>
+      <button onclick="exportFinancials()" style="background:var(--ink);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;padding:.5rem 1rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:.4rem;">
+        ⬇ Export CSV
+      </button>
     </div>
+
+    <!-- KPI cards -->
+    <div class="fin-stats">
+      <div class="fin-stat accent">
+        <div class="fin-stat-label">Total Revenue</div>
+        <div class="fin-stat-value">$${totalRevenue.toFixed(2)}</div>
+        <div class="fin-stat-sub">${totalOrders} order${totalOrders !== 1 ? 's' : ''} · ${totalItems} items</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Gross Profit</div>
+        <div class="fin-stat-value" style="color:${profitColor}">$${totalProfit.toFixed(2)}</div>
+        <div class="fin-stat-sub">${avgMargin.toFixed(1)}% margin</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Cost of Goods</div>
+        <div class="fin-stat-value">$${totalCost.toFixed(2)}</div>
+        <div class="fin-stat-sub">COGS</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Avg Order Value</div>
+        <div class="fin-stat-value">$${avgOrder.toFixed(2)}</div>
+        <div class="fin-stat-sub">${totalItems} units total</div>
+      </div>
+      ${cancelled.length ? `
+      <div class="fin-stat wide" style="border-color:#fee2e2;">
+        <div class="fin-stat-label" style="color:#dc2626;">Cancelled Orders</div>
+        <div class="fin-stat-value" style="color:#dc2626;font-size:1.1rem;">${cancelled.length} order${cancelled.length !== 1 ? 's' : ''} · $${cancelledRevenue.toFixed(2)} reversed</div>
+      </div>` : ''}
+    </div>
+
+    <!-- Product breakdown -->
     ${productList.length ? `
     <div>
       <div class="fin-section-title">Product Breakdown</div>
       <table class="fin-table">
-        <thead><tr><th>Product</th><th>Qty</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead>
+        <thead><tr><th>Product</th><th>Qty</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Margin</th></tr></thead>
         <tbody>
-          ${productList.map(p => `<tr><td class="product-name">${esc(p.name)}</td><td>${p.qty}</td><td><div class="fin-bar-cell"><div class="fin-bar" style="width:${maxRevenue?(p.revenue/maxRevenue*100):0}%"></div><span style="position:relative;">$${p.revenue.toFixed(2)}</span></div></td><td>$${p.cost.toFixed(2)}</td><td style="${p.profit>=0?'color:#15803d;':'color:#dc2626;'}font-weight:600;">$${p.profit.toFixed(2)}<div style="font-size:.65rem;color:var(--muted);font-weight:400;">${p.margin.toFixed(0)}%</div></td></tr>`).join('')}
-          <tr style="font-weight:700;border-top:2px solid var(--border);"><td>Total</td><td>${totalItems}</td><td>$${totalRevenue.toFixed(2)}</td><td>$${totalCost.toFixed(2)}</td><td style="${totalProfit>=0?'color:#15803d;':'color:#dc2626;'}">$${totalProfit.toFixed(2)}</td></tr>
+          ${productList.map(p => `
+          <tr>
+            <td class="product-name">${esc(p.name)}</td>
+            <td>${p.qty}</td>
+            <td>
+              <div class="fin-bar-cell">
+                <div class="fin-bar" style="width:${maxRevenue ? (p.revenue/maxRevenue*100) : 0}%"></div>
+                <span style="position:relative;">$${p.revenue.toFixed(2)}</span>
+              </div>
+            </td>
+            <td>$${p.cost.toFixed(2)}</td>
+            <td style="color:${p.profit>=0?'#15803d':'#dc2626'};font-weight:600;">$${p.profit.toFixed(2)}</td>
+            <td style="color:var(--muted);">${p.margin.toFixed(0)}%</td>
+          </tr>`).join('')}
+          <tr style="font-weight:700;border-top:2px solid var(--border);background:var(--cream);">
+            <td>Total</td><td>${totalItems}</td>
+            <td>$${totalRevenue.toFixed(2)}</td>
+            <td>$${totalCost.toFixed(2)}</td>
+            <td style="color:${profitColor}">$${totalProfit.toFixed(2)}</td>
+            <td style="color:var(--muted);">${avgMargin.toFixed(0)}%</td>
+          </tr>
         </tbody>
       </table>
     </div>` : ''}
-    ${recent.length ? `
+
+    <!-- Full order log -->
+    ${allForLog.length ? `
     <div>
-      <div class="fin-section-title">Recent Orders</div>
+      <div class="fin-section-title">Order Log</div>
       <table class="fin-table">
-        <thead><tr><th>Order</th><th>Items</th><th>Status</th><th>Total</th></tr></thead>
+        <thead><tr><th>Order</th><th>Pickup</th><th>Items</th><th>Vehicle</th><th>Status</th><th>Total</th></tr></thead>
         <tbody>
-          ${recent.map(o => {
+          ${allForLog.map(o => {
             const status = o.status || 'new';
             const statusLabel = status === 'picked-up' ? 'Done' : status.charAt(0).toUpperCase() + status.slice(1);
             const time = new Date(o.createdAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
-            return `<tr><td style="font-size:.72rem;"><div style="font-weight:600;">#${String(o.id).slice(-6)}</div><div style="color:var(--muted);font-size:.66rem;">${time}</div></td><td style="font-size:.75rem;">${o.items.map(i=>`${i.name} ×${i.qty}`).join(', ')}</td><td><span class="order-status-badge ${status}" style="font-size:.58rem;">${statusLabel}</span></td><td>$${o.total}</td></tr>`;
+            return `<tr style="${status==='cancelled'?'opacity:.55;':''}">
+              <td style="font-size:.72rem;"><div style="font-weight:600;">#${String(o.id).slice(-6)}</div><div style="color:var(--muted);font-size:.65rem;">${time}</div></td>
+              <td style="font-size:.75rem;">${esc(o.dateStr)}</td>
+              <td style="font-size:.75rem;">${o.items.map(i=>`${esc(i.name)} ×${i.qty}`).join(', ')}</td>
+              <td style="font-size:.75rem;">${esc(o.vehicle)}<br><span style="color:var(--muted);font-size:.65rem;">${esc(o.plate).toUpperCase()}</span></td>
+              <td><span class="order-status-badge ${status}" style="font-size:.58rem;">${statusLabel}</span></td>
+              <td style="font-weight:600;">$${o.total}</td>
+            </tr>`;
           }).join('')}
         </tbody>
       </table>
-    </div>` : '<div class="orders-empty">No orders in this period.</div>'}
+    </div>` : '<div class="orders-empty" style="padding:2rem;text-align:center;">No orders in this period.</div>'}
   `;
 }
 
@@ -526,16 +653,8 @@ function renderSliderEditor() {
       <div class="slide-editor-body">
         <div class="slide-editor-row">
           <div>
-            <label>Background image</label>
-            <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b></div>
-            <div class="img-drop-zone" id="slide-img-zone-${idx}">
-              <label class="img-drop-empty" for="slide-img-file-${idx}"><div class="img-drop-icon">🖼</div><div class="img-drop-text">Drag &amp; drop or <strong>tap to browse</strong></div></label>
-              <div class="img-drop-preview-wrap" style="display:none"><img class="img-drop-preview" /><button type="button" class="img-drop-remove" title="Remove">✕</button></div>
-              <div class="img-drop-loading" style="display:none">Uploading...</div>
-              <div class="img-drop-or">— or paste a URL —</div>
-              <input type="text" class="img-drop-url" id="slide-img-${idx}" placeholder="https://..." />
-              <input type="file" id="slide-img-file-${idx}" class="img-drop-file" accept="image/*" />
-            </div>
+            <label>Background image URL</label>
+            <input type="text" class="img-drop-url" style="margin-top:.3rem;" placeholder="https://..." value="${esc(s.bg||'')}" oninput="editingSlides[${idx}].bg=this.value" />
           </div>
           <div>
             <label>Background color</label>
@@ -567,150 +686,60 @@ function renderSliderEditor() {
         </div>
       </div>
     </div>`).join('');
-
-  editingSlides.forEach((s, idx) => {
-    setupDropZone(`slide-img-zone-${idx}`, `slide-img-${idx}`);
-    setDropZoneValue(`slide-img-zone-${idx}`, s.bg || '');
-    const zone = document.getElementById(`slide-img-zone-${idx}`);
-    if (zone && !zone._slideListener) {
-      zone.addEventListener('imageChanged', (e) => {
-        const i = parseInt(zone.closest('.slide-editor').dataset.idx);
-        if (!isNaN(i) && editingSlides[i]) editingSlides[i].bg = (e.detail && e.detail.url) || '';
-      });
-      zone._slideListener = true;
-    }
-  });
-}
-
-// ── FILTERS (admin) ──
-function openFiltersModal() { filtersEditing = JSON.parse(JSON.stringify(filterDefs || [])); renderFiltersEditor(); openModal('filters-modal'); }
-
-function renderFiltersEditor() {
-  const list = document.getElementById('filters-list');
-  if (!filtersEditing.length) { list.innerHTML = '<div class="product-filters-empty">No filters yet.</div>'; return; }
-  list.innerHTML = filtersEditing.map((f, idx) => `
-    <div class="filter-row">
-      <div class="filter-row-head">
-        <input type="text" placeholder="Filter name" value="${esc(f.name||'')}" oninput="updateFilterName(${idx}, this.value)" />
-        <button class="filter-row-del" onclick="deleteFilter(${idx})">Remove</button>
-      </div>
-      <div class="filter-options">${(f.options||[]).map((opt,oi)=>`<span class="filter-option-chip">${esc(opt)}<button onclick="deleteFilterOption(${idx},${oi})">×</button></span>`).join('')}</div>
-      <div class="filter-option-add">
-        <input type="text" placeholder="Add option" id="filter-opt-input-${idx}" onkeydown="if(event.key==='Enter'){event.preventDefault();addFilterOption(${idx});}" />
-        <button onclick="addFilterOption(${idx})">Add</button>
-      </div>
-    </div>`).join('');
-}
-
-function addFilter() { filtersEditing.push({ id: 'f' + Date.now(), name: '', options: [] }); renderFiltersEditor(); }
-function updateFilterName(idx, value) { if (filtersEditing[idx]) filtersEditing[idx].name = value; }
-function deleteFilter(idx) { if (!confirm('Delete this filter?')) return; filtersEditing.splice(idx, 1); renderFiltersEditor(); }
-function addFilterOption(idx) {
-  const input = document.getElementById('filter-opt-input-' + idx);
-  if (!input) return;
-  const val = input.value.trim();
-  if (!val) return;
-  if (!filtersEditing[idx].options) filtersEditing[idx].options = [];
-  if (filtersEditing[idx].options.includes(val)) { input.value = ''; return; }
-  filtersEditing[idx].options.push(val); input.value = ''; renderFiltersEditor();
-  setTimeout(() => { const nx = document.getElementById('filter-opt-input-' + idx); if (nx) nx.focus(); }, 0);
-}
-function deleteFilterOption(idx, oi) { filtersEditing[idx].options.splice(oi, 1); renderFiltersEditor(); }
-
-async function saveFilters() {
-  const clean = filtersEditing.map(f => ({ id: f.id || ('f' + Date.now()), name: String(f.name||'').trim(), options: (f.options||[]).map(o=>String(o).trim()).filter(Boolean) })).filter(f => f.name);
-  const oldById = {}; filterDefs.forEach(f => { if (f.id) oldById[f.id] = f; });
-  const renames = [], removedNames = new Set(filterDefs.map(f => f.name).filter(Boolean));
-  clean.forEach(f => { const old = oldById[f.id]; if (old && old.name && old.name !== f.name) renames.push({ from: old.name, to: f.name }); removedNames.delete(f.name); });
-  filterDefs = clean; await saveConfig();
-  if (renames.length || removedNames.size) {
-    const validOpts = {}; clean.forEach(f => { validOpts[f.name] = new Set(f.options); });
-    const updates = [];
-    for (const p of products) {
-      const f = p.filters && typeof p.filters === 'object' ? { ...p.filters } : {};
-      let changed = false;
-      renames.forEach(r => { if (f[r.from] !== undefined) { f[r.to] = f[r.from]; delete f[r.from]; changed = true; } });
-      removedNames.forEach(n => { if (f[n] !== undefined) { delete f[n]; changed = true; } });
-      for (const k of Object.keys(f)) { if (!validOpts[k] || !validOpts[k].has(f[k])) { delete f[k]; changed = true; } }
-      if (changed) updates.push(fetch('/api/products/' + p.id, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ filters: f }) }));
-    }
-    if (updates.length) await Promise.all(updates);
-    const pRes = await fetch('/api/products'); if (pRes.ok) products = await pRes.json();
-  }
-  renderGrid(); renderShopFilterBar(); closeModal('filters-modal');
 }
 
 // ── PRODUCT EDIT ──
-function renderProductFilterSelectors(current) {
+function renderProductFilterSelectors() {
   const wrap = document.getElementById('product-filters-wrap');
   if (!wrap) return;
-  current = current || {};
-  if (!filterDefs.length) { wrap.innerHTML = '<div class="product-filters-empty">No filters yet. Create filters via the 🏷 Filters button.</div>'; return; }
-  wrap.innerHTML = filterDefs.map(f => `
-    <div class="product-filter-group">
-      <label>${esc(f.name)}</label>
-      <select data-filter-name="${esc(f.name)}">
-        <option value="">— Not set —</option>
-        ${(f.options||[]).map(o=>`<option value="${esc(o)}" ${current[f.name]===o?'selected':''}>${esc(o)}</option>`).join('')}
-      </select>
-    </div>`).join('');
+  wrap.innerHTML = '';
 }
 
-function collectProductFilters() {
-  const out = {};
-  document.querySelectorAll('#product-filters-wrap select[data-filter-name]').forEach(sel => { if (sel.value) out[sel.dataset.filterName] = sel.value; });
-  return out;
-}
+function collectProductFilters() { return {}; }
 
 function openProductModal(id = null) {
   editingId = id;
   document.getElementById('product-modal-title').textContent = id ? 'Edit Product' : 'Add Product';
-  setupDropZone('edit-img-zone', 'edit-img');
   if (id) {
     const p = products.find(x => x.id === id);
-    document.getElementById('edit-name').value = p.name;
-    document.getElementById('edit-desc').value = p.desc;
-    document.getElementById('edit-price').value = p.price;
-    document.getElementById('edit-cost').value = (p.cost != null && p.cost !== '') ? p.cost : '';
-    document.getElementById('edit-badge').value = p.badge || '';
+    document.getElementById('edit-name').value     = p.name;
+    document.getElementById('edit-desc').value     = p.desc || '';
+    document.getElementById('edit-price').value    = p.price;
+    document.getElementById('edit-cost').value     = (p.cost != null && p.cost !== '') ? p.cost : '';
+    document.getElementById('edit-badge').value    = p.badge || '';
     document.getElementById('edit-category').value = p.category || '';
-    document.getElementById('edit-qty').value = p.qty !== undefined ? p.qty : '';
-    document.getElementById('edit-max-qty').value = p.maxQty !== undefined ? p.maxQty : '';
-    setDropZoneValue('edit-img-zone', p.img || '');
-    renderProductFilterSelectors(p.filters || {});
+    document.getElementById('edit-qty').value      = p.qty !== undefined ? p.qty : '';
+    document.getElementById('edit-max-qty').value  = p.maxQty !== undefined ? p.maxQty : '';
+    document.getElementById('edit-img').value      = p.img || '';
   } else {
-    ['edit-name','edit-desc','edit-price','edit-cost','edit-badge','edit-category'].forEach(i => document.getElementById(i).value = '');
-    document.getElementById('edit-qty').value = '';
-    document.getElementById('edit-max-qty').value = '';
-    setDropZoneValue('edit-img-zone', '');
-    renderProductFilterSelectors({});
+    ['edit-name','edit-desc','edit-price','edit-cost','edit-badge','edit-category','edit-qty','edit-max-qty','edit-img'].forEach(i => { const el = document.getElementById(i); if(el) el.value = ''; });
   }
   openModal('product-modal');
 }
 
 async function saveProduct() {
-  const name = document.getElementById('edit-name').value.trim();
-  const desc = document.getElementById('edit-desc').value.trim();
+  const name  = document.getElementById('edit-name').value.trim();
+  const desc  = document.getElementById('edit-desc').value.trim();
   const price = parseFloat(document.getElementById('edit-price').value);
   if (!name || !desc || isNaN(price)) { alert('Please fill in Name, Description, and Price.'); return; }
-  const costRaw = document.getElementById('edit-cost').value;
   const updated = {
-    name, desc, price, cost: costRaw === '' ? 0 : (parseFloat(costRaw) || 0),
-    badge: document.getElementById('edit-badge').value.trim() || null,
-    category: document.getElementById('edit-category').value.trim() || '',
-    img: getDropZoneValue('edit-img-zone') || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
-    qty: parseInt(document.getElementById('edit-qty').value) || 0,
-    maxQty: parseInt(document.getElementById('edit-max-qty').value) || null,
-    filters: collectProductFilters(),
+    name, desc, price,
+    cost:     parseFloat(document.getElementById('edit-cost').value)  || 0,
+    badge:    document.getElementById('edit-badge').value.trim()      || null,
+    category: document.getElementById('edit-category').value.trim()   || '',
+    img:      document.getElementById('edit-img').value.trim()        || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
+    qty:      parseInt(document.getElementById('edit-qty').value)     || 0,
+    maxQty:   parseInt(document.getElementById('edit-max-qty').value) || null,
+    filters:  {},
   };
   try {
     const res = editingId
-      ? await fetch(`/api/products/${editingId}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(updated) })
-      : await fetch('/api/products', { method: 'POST', headers: authHeaders(), body: JSON.stringify(updated) });
+      ? await fetch(`/api/products/${editingId}`, { method: 'PUT',  headers: authHeaders(), body: JSON.stringify(updated) })
+      : await fetch('/api/products',               { method: 'POST', headers: authHeaders(), body: JSON.stringify(updated) });
     if (res.status === 401) { handleAuthFailure(); return; }
-    if (!res.ok) { alert('Failed to save product (' + res.status + ').'); return; }
+    if (!res.ok) { const d = await res.json().catch(()=>({})); alert('Failed to save: ' + (d.error || res.status)); return; }
     const pRes = await fetch('/api/products'); if (pRes.ok) products = await pRes.json();
-    renderGrid();
+    if (typeof renderGrid === 'function') renderGrid();
   } catch(e) { alert('Network error saving product.'); return; }
   closeModal('product-modal');
 }
@@ -722,37 +751,34 @@ async function deleteProduct(id) {
     if (res.status === 401) { handleAuthFailure(); return; }
     if (!res.ok) { alert('Failed to delete product (' + res.status + ').'); return; }
     const pRes = await fetch('/api/products'); if (pRes.ok) products = await pRes.json();
-    renderGrid();
+    if (typeof renderGrid === 'function') renderGrid();
   } catch(e) { alert('Network error deleting product.'); }
 }
 
 // ── PICKUP INSTRUCTIONS ──
 function openPickupInstructionsModal() {
   document.getElementById('pi-title').value = pickupInstructions.title || '';
-  document.getElementById('pi-text').value = pickupInstructions.text || '';
-  setupDropZone('pi-img-zone', 'pi-img');
-  setDropZoneValue('pi-img-zone', pickupInstructions.img || '');
+  document.getElementById('pi-text').value  = pickupInstructions.text  || '';
+  const piImg = document.getElementById('pi-img');
+  if (piImg) piImg.value = pickupInstructions.img || '';
   openModal('pickup-instructions-modal');
 }
 function savePickupInstructions() {
   pickupInstructions.title = document.getElementById('pi-title').value.trim() || 'Pickup Instructions';
-  pickupInstructions.text = document.getElementById('pi-text').value.trim();
-  pickupInstructions.img = getDropZoneValue('pi-img-zone');
+  pickupInstructions.text  = document.getElementById('pi-text').value.trim();
+  const piImg = document.getElementById('pi-img');
+  pickupInstructions.img   = piImg ? piImg.value.trim() : '';
   saveData(); closeModal('pickup-instructions-modal');
 }
 
 // ── ADMIN INIT ──
 async function initAdmin() {
   await loadData();
-
-  // Fetch orders (admin only)
   try {
     const oRes = await fetch('/api/orders', { headers: authHeaders() });
     if (oRes.ok) adminOrders = await oRes.json();
   } catch(e) {}
-
-  renderHero(); renderShopFilterBar(); renderGrid(); renderSlider(); updateCartBtn(); connectSSE();
-
+  renderHero(); renderGrid(); renderSlider(); updateCartBtn(); connectSSE();
   if (adminToken) {
     try {
       const res = await fetch('/api/session', { headers: authHeaders() });
