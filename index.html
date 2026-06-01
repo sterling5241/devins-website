@@ -12,22 +12,6 @@
 </head>
 <body>
 
-  <!-- ADMIN BAR (shown when logged in) -->
-  <div class="admin-bar">
-    <span>⚙ Admin Mode — you are logged in</span>
-    <div class="admin-bar-actions">
-      <button onclick="openProductModal()">+ Add Product</button>
-      <button onclick="openFiltersModal()">🏷 Filters</button>
-      <button onclick="openHeroModal()">Edit Banner</button>
-      <button onclick="openSliderModal()">🎞 Edit Slider</button>
-      <button onclick="openPickupInstructionsModal()">Edit Pickup Instructions</button>
-      <button onclick="openHoursModal()">📅 Business Hours</button>
-      <button onclick="openOrders()">📦 Orders <span class="orders-badge" id="orders-badge"></span></button>
-      <button onclick="openFinancials()">💰 Financials</button>
-      <button class="logout-btn" onclick="logout()">Log Out</button>
-    </div>
-  </div>
-
   <!-- HEADER -->
   <header>
     <a class="logo" href="#" id="logo-link">The<span>.</span>Pouches</a>
@@ -42,7 +26,6 @@
     <div class="hero-bg active" id="hero-bg">
       <img id="hero-bg-img" alt="">
     </div>
-    <button class="hero-edit-btn" onclick="openHeroModal()">✏ Edit Banner</button>
     <div class="hero-schedule" id="hero-schedule"></div>
   </section>
 
@@ -52,7 +35,6 @@
     <button class="slider-arrow prev" id="slider-prev" aria-label="Previous slide">‹</button>
     <button class="slider-arrow next" id="slider-next" aria-label="Next slide">›</button>
     <div class="slider-dots" id="slider-dots"></div>
-    <button class="slider-edit-btn" onclick="openSliderModal()">✏ Edit Slider</button>
   </section>
 
   <!-- PRODUCT GRID -->
@@ -61,14 +43,6 @@
       <h2 class="section-title">Available Now</h2>
       <span class="item-count" id="item-count"></span>
     </div>
-    <div class="shop-filter-bar" id="shop-filter-bar" style="display:none">
-      <button class="shop-filter-btn" onclick="toggleShopFilterPanel()">
-        <span>🔍 Filters</span>
-        <span class="shop-filter-count" id="shop-filter-count" style="display:none">0</span>
-      </button>
-      <button class="shop-filter-clear" id="shop-filter-clear" onclick="clearShopFilters()" style="display:none">Clear</button>
-    </div>
-    <div class="shop-filter-panel" id="shop-filter-panel"></div>
     <div class="grid" id="product-grid"></div>
   </section>
 
@@ -83,9 +57,7 @@
 
   <footer>© 2026 The.Pouches &nbsp;·&nbsp; All items sold as-is &nbsp;·&nbsp; Questions? Just reach out.</footer>
 
-  <!-- ── MODALS ── -->
-
-  <!-- CART -->
+  <!-- CART MODAL -->
   <div class="modal-overlay" id="cart-modal">
     <div class="modal cart-modal">
       <div class="modal-header">
@@ -93,289 +65,6 @@
         <button class="modal-close" onclick="closeModal('cart-modal')">×</button>
       </div>
       <div class="modal-body" id="cart-modal-body"></div>
-    </div>
-  </div>
-
-  <!-- LOGIN -->
-  <div class="modal-overlay" id="login-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Admin Login</h2>
-        <button class="modal-close" onclick="closeModal('login-modal')">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="field-group">
-          <label>Password</label>
-          <input type="password" id="login-password" placeholder="Enter your password" onkeydown="if(event.key==='Enter') doLogin()">
-        </div>
-        <div class="modal-error" id="login-error">Incorrect password. Try again.</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('login-modal')">Cancel</button>
-        <button class="btn-primary" onclick="doLogin()">Log In</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- HERO EDIT -->
-  <div class="modal-overlay" id="hero-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Edit Banner</h2>
-        <button class="modal-close" onclick="cancelHeroEdit()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="field-group">
-          <label>Background Image — optional</label>
-          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b> · Recommended <b>1920×800 px</b></div>
-          <div class="img-drop-zone" id="edit-hero-bg-zone">
-            <label class="img-drop-empty" for="edit-hero-bg-file">
-              <div class="img-drop-icon">🖼</div>
-              <div class="img-drop-text">Drag &amp; drop an image here<br>or <strong>tap to browse</strong></div>
-            </label>
-            <div class="img-drop-preview-wrap" style="display:none">
-              <img class="img-drop-preview">
-              <button type="button" class="img-drop-remove" title="Remove image">✕</button>
-            </div>
-            <div class="img-drop-loading" style="display:none">Uploading...</div>
-            <div class="img-drop-or">— or paste a URL —</div>
-            <input type="text" class="img-drop-url" id="edit-hero-bg" placeholder="https://...">
-            <input type="file" id="edit-hero-bg-file" class="img-drop-file" accept="image/*">
-          </div>
-        </div>
-        <div class="field-group">
-          <label>Background Adjustments</label>
-          <div class="slider-row"><label>Size</label><input type="range" id="edit-hero-bg-size" min="10" max="300" step="1" value="100" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-size-val">100%</span></div>
-          <div class="slider-row"><label>Position X</label><input type="range" id="edit-hero-bg-posx" min="-100" max="100" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-posx-val">0%</span></div>
-          <div class="slider-row"><label>Position Y</label><input type="range" id="edit-hero-bg-posy" min="-100" max="100" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-posy-val">0%</span></div>
-          <div class="slider-row"><label>Rotation</label><input type="range" id="edit-hero-bg-rot" min="-180" max="180" step="1" value="0" oninput="updateHeroBgPreview()"><span class="slider-value" id="edit-hero-bg-rot-val">0°</span></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="cancelHeroEdit()">Cancel</button>
-        <button class="btn-primary" onclick="saveHero()">Save Changes</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SLIDER EDITOR -->
-  <div class="modal-overlay" id="slider-modal">
-    <div class="modal slider-modal">
-      <div class="modal-header">
-        <h2>Edit Slider</h2>
-        <button class="modal-close" onclick="cancelSliderEdit()">×</button>
-      </div>
-      <div class="modal-body">
-        <div id="slider-editor-list"></div>
-        <button class="slide-add-btn" onclick="addSlide()">+ Add Slide</button>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="cancelSliderEdit()">Cancel</button>
-        <button class="btn-primary" onclick="saveSlider()">Save Changes</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ADD / EDIT PRODUCT -->
-  <div class="modal-overlay" id="product-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="product-modal-title">Add Product</h2>
-        <button class="modal-close" onclick="closeModal('product-modal')">×</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="edit-product-id">
-        <div class="field-group"><label>Product Name</label><input type="text" id="edit-name" placeholder="e.g. Leather Crossbody Pouch"></div>
-        <div class="field-group"><label>Description</label><textarea id="edit-desc" placeholder="Describe the item..."></textarea></div>
-        <div class="field-row">
-          <div class="field-group"><label>Price ($)</label><input type="number" id="edit-price" placeholder="0" min="0" step="0.01"></div>
-          <div class="field-group"><label>Cost ($)</label><input type="number" id="edit-cost" placeholder="0" min="0" step="0.01"></div>
-        </div>
-        <div class="field-row">
-          <div class="field-group"><label>Badge — optional</label><input type="text" id="edit-badge" placeholder="e.g. New, Sale"></div>
-        </div>
-        <div class="field-group"><label>Category</label><input type="text" id="edit-category" placeholder="e.g. Pouches, Clothing"></div>
-        <div class="field-group">
-          <label>Filters</label>
-          <div class="product-filters-wrap" id="product-filters-wrap"></div>
-        </div>
-        <div class="field-group">
-          <label>Image</label>
-          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b> · Recommended <b>800×600 px</b></div>
-          <div class="img-drop-zone" id="edit-img-zone">
-            <label class="img-drop-empty" for="edit-img-file">
-              <div class="img-drop-icon">📷</div>
-              <div class="img-drop-text">Drag &amp; drop an image here<br>or <strong>tap to browse</strong></div>
-            </label>
-            <div class="img-drop-preview-wrap" style="display:none">
-              <img class="img-drop-preview">
-              <button type="button" class="img-drop-remove" title="Remove image">✕</button>
-            </div>
-            <div class="img-drop-loading" style="display:none">Uploading...</div>
-            <div class="img-drop-or">— or paste a URL —</div>
-            <input type="text" class="img-drop-url" id="edit-img" placeholder="https://...">
-            <input type="file" id="edit-img-file" class="img-drop-file" accept="image/*">
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field-group"><label>Stock Quantity</label><input type="number" id="edit-qty" placeholder="e.g. 5" min="0"></div>
-          <div class="field-group"><label>Max Allowed Quantity</label><input type="number" id="edit-max-qty" placeholder="e.g. 10" min="1"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('product-modal')">Cancel</button>
-        <button class="btn-primary" onclick="saveProduct()">Save Product</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- FILTERS MANAGEMENT -->
-  <div class="modal-overlay" id="filters-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Manage Filters</h2>
-        <button class="modal-close" onclick="closeModal('filters-modal')">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-info">Create filters customers can use to narrow the shop.</div>
-        <div id="filters-list"></div>
-        <button class="btn-secondary" onclick="addFilter()" style="align-self:flex-start;">+ Add Filter</button>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('filters-modal')">Cancel</button>
-        <button class="btn-primary" onclick="saveFilters()">Save Filters</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PICKUP INSTRUCTIONS -->
-  <div class="modal-overlay" id="pickup-instructions-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Edit Pickup Instructions</h2>
-        <button class="modal-close" onclick="closeModal('pickup-instructions-modal')">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="field-group"><label>Panel Title</label><input type="text" id="pi-title" placeholder="e.g. Pickup Instructions"></div>
-        <div class="field-group"><label>Instructions</label><textarea id="pi-text" style="min-height:120px" placeholder="Pull up to the side entrance..."></textarea></div>
-        <div class="field-group">
-          <label>Image — optional</label>
-          <div class="img-drop-spec">JPG, PNG, GIF or WebP · <b>Max 4 MB</b></div>
-          <div class="img-drop-zone" id="pi-img-zone">
-            <label class="img-drop-empty" for="pi-img-file">
-              <div class="img-drop-icon">📷</div>
-              <div class="img-drop-text">Drag &amp; drop or <strong>tap to browse</strong></div>
-            </label>
-            <div class="img-drop-preview-wrap" style="display:none">
-              <img class="img-drop-preview">
-              <button type="button" class="img-drop-remove">✕</button>
-            </div>
-            <div class="img-drop-loading" style="display:none">Uploading...</div>
-            <div class="img-drop-or">— or paste a URL —</div>
-            <input type="text" class="img-drop-url" id="pi-img" placeholder="https://...">
-            <input type="file" id="pi-img-file" class="img-drop-file" accept="image/*">
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('pickup-instructions-modal')">Cancel</button>
-        <button class="btn-primary" onclick="savePickupInstructions()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SCHEDULE CALENDAR -->
-  <div class="modal-overlay" id="hours-modal">
-    <div class="modal schedule-modal">
-      <div class="modal-header">
-        <h2>Store Schedule</h2>
-        <button class="modal-close" onclick="closeModal('hours-modal')">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="sched-section">
-          <div class="sched-section-title">Weekly Defaults</div>
-          <div class="sched-hint">Click a day to toggle open/closed. Set default hours for open days.</div>
-          <div class="weekly-row" id="weekly-defaults-row"></div>
-          <div id="weekly-hours-editor"></div>
-          <div class="slot-interval-row">
-            <label style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem;display:block;">Time Slot Interval</label>
-            <select id="sched-slot-mins">
-              <option value="0">None (customer picks any time)</option>
-              <option value="15">Every 15 minutes</option>
-              <option value="30">Every 30 minutes</option>
-              <option value="60">Every 1 hour</option>
-            </select>
-          </div>
-        </div>
-        <div class="sched-section">
-          <div class="sched-section-title">Calendar Overrides</div>
-          <div class="sched-hint">Tap a date to mark it <strong style="color:#16a34a">open</strong>. Right-click or long-press to mark it <strong style="color:#dc2626">closed</strong>.</div>
-          <div class="cal-nav">
-            <button onclick="shiftCalMonth(-1)">← Prev</button>
-            <span class="cal-nav-label" id="cal-month-label"></span>
-            <button onclick="shiftCalMonth(1)">Next →</button>
-          </div>
-          <div class="cal-weekdays" id="cal-weekdays"></div>
-          <div class="cal-grid" id="cal-grid"></div>
-          <div class="day-detail" id="day-detail">
-            <div class="day-detail-title" id="day-detail-title"></div>
-            <div class="day-detail-status">
-              <button id="day-detail-open-btn" onclick="setDayOverride(true)">Open</button>
-              <button id="day-detail-closed-btn" onclick="setDayOverride(false)">Closed</button>
-              <button onclick="clearDayOverride()" style="flex:0.6;font-size:.7rem;color:var(--muted);">Reset to default</button>
-            </div>
-            <div class="day-detail-hours" id="day-detail-hours">
-              <div><label>Opens</label><input type="time" id="day-detail-start" onchange="updateDayOverrideHours()"></div>
-              <div><label>Closes</label><input type="time" id="day-detail-end" onchange="updateDayOverrideHours()"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('hours-modal')">Cancel</button>
-        <button class="btn-primary" onclick="saveSchedule()">Save Schedule</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ORDERS DASHBOARD -->
-  <div class="orders-overlay" id="orders-overlay" onclick="if(event.target===this)closeOrders()">
-    <div class="orders-panel">
-      <div class="orders-header">
-        <h2>📦 Live Orders</h2>
-        <button class="orders-header-close" onclick="closeOrders()">✕</button>
-      </div>
-      <div class="orders-tabs">
-        <button class="orders-tab active" data-filter="all" onclick="setOrderFilter('all')">All <span class="tab-count" id="tab-count-all"></span></button>
-        <button class="orders-tab" data-filter="new" onclick="setOrderFilter('new')">New <span class="tab-count" id="tab-count-new"></span></button>
-        <button class="orders-tab" data-filter="ready" onclick="setOrderFilter('ready')">Ready <span class="tab-count" id="tab-count-ready"></span></button>
-        <button class="orders-tab" data-filter="picked-up" onclick="setOrderFilter('picked-up')">Done <span class="tab-count" id="tab-count-picked-up"></span></button>
-        <button class="orders-tab" data-filter="cancelled" onclick="setOrderFilter('cancelled')">Cancelled <span class="tab-count" id="tab-count-cancelled"></span></button>
-      </div>
-      <div class="orders-search">
-        <input type="text" id="orders-search-input" placeholder="Search orders..." oninput="onOrderSearch(this.value)">
-      </div>
-      <div class="orders-list" id="orders-list"></div>
-    </div>
-  </div>
-
-  <!-- FINANCIALS DASHBOARD -->
-  <div class="fin-overlay" id="fin-overlay" onclick="if(event.target===this)closeFinancials()">
-    <div class="fin-panel">
-      <div class="fin-header">
-        <h2>💰 Financial Breakdown</h2>
-        <div style="display:flex;align-items:center;gap:0.5rem;">
-          <button class="fin-reset-btn" onclick="resetFinancials()">Reset All</button>
-          <button class="orders-header-close" onclick="closeFinancials()">✕</button>
-        </div>
-      </div>
-      <div class="fin-period-tabs">
-        <button class="fin-period-tab active" data-period="all" onclick="setFinPeriod('all')">All Time</button>
-        <button class="fin-period-tab" data-period="today" onclick="setFinPeriod('today')">Today</button>
-        <button class="fin-period-tab" data-period="week" onclick="setFinPeriod('week')">This Week</button>
-        <button class="fin-period-tab" data-period="month" onclick="setFinPeriod('month')">This Month</button>
-      </div>
-      <div class="fin-body" id="fin-body"></div>
     </div>
   </div>
 
@@ -398,14 +87,11 @@
     </div>
   </div>
 
-  <!-- TOAST NOTIFICATIONS -->
+  <!-- TOAST -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- SCRIPTS: shared first, then shop logic, then admin logic -->
   <script src="js/shared.js"></script>
   <script src="js/shop.js"></script>
-  <script src="js/admin.js"></script>
-  <link rel="stylesheet" href="css/admin.css">
 
 </body>
 </html>
