@@ -854,7 +854,7 @@ async function initAdmin() {
     const oRes = await fetch('/api/orders', { headers: authHeaders() });
     if (oRes.ok) adminOrders = await oRes.json();
   } catch(e) {}
-  renderHero(); renderGrid(); renderSlider(); updateCartBtn(); connectSSE();
+  applySiteSettings(); renderHero(); renderGrid(); renderSlider(); updateCartBtn(); connectSSE();
   if (adminToken) {
     try {
       const res = await fetch('/api/session', { headers: authHeaders() });

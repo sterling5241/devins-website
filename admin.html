@@ -96,6 +96,7 @@
         <button onclick="openSliderModal()">🎞 Slider</button>
         <button onclick="openPickupInstructionsModal()">📋 Pickup</button>
         <button onclick="openHoursModal()">📅 Hours</button>
+        <button onclick="openSiteSettings()">⚙ Settings</button>
         <button onclick="openOrders()">📦 Orders <span class="orders-badge" id="orders-badge"></span></button>
         <button onclick="openFinancials()">💰 Financials</button>
         <button class="btn-danger" onclick="doLogout()">Log Out</button>
@@ -315,6 +316,38 @@
     </div>
   </div>
 
+  <!-- SITE SETTINGS -->
+  <div class="modal-overlay" id="site-settings-modal">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h2>⚙ Site Settings</h2><button class="modal-close" onclick="closeModal('site-settings-modal')">×</button></div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>Shop Name</label>
+          <input type="text" id="ss-name" placeholder="e.g. The.Pouches">
+        </div>
+        <div class="field-group">
+          <label>Logo Image URL — optional</label>
+          <input type="text" id="ss-logo-url" placeholder="https://... (replaces text logo)">
+        </div>
+        <div class="field-group">
+          <label>Footer Text</label>
+          <input type="text" id="ss-footer" placeholder="All items sold as-is · Questions? Just reach out.">
+        </div>
+        <div class="field-group">
+          <label>Accent Color</label>
+          <div style="display:flex;align-items:center;gap:.7rem;">
+            <input type="color" id="ss-accent" value="#c8522a" style="width:44px;height:36px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:2px;">
+            <span style="font-size:.82rem;color:var(--muted);">Used for buttons, badges, and highlights</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('site-settings-modal')">Cancel</button>
+        <button class="btn-primary" onclick="saveSiteSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -357,6 +390,7 @@
       document.body.classList.add('admin-mode');
       connectSSE();
       loadAdminPageData();
+      startOrderPolling();
     }
 
     async function doLogout() {
@@ -365,6 +399,7 @@
       localStorage.removeItem('pouches-admin-token');
       isAdmin = false;
       document.body.classList.remove('admin-mode');
+      stopOrderPolling();
       document.getElementById('login-password').value = '';
       document.getElementById('login-error').classList.remove('show');
     }
@@ -384,8 +419,10 @@
           if (cfg.filters) filterDefs = cfg.filters;
           if (cfg.slides) sliderSlides = cfg.slides;
           if (cfg.pickupInstructions) pickupInstructions = cfg.pickupInstructions;
+          if (cfg.siteSettings) siteSettings = { ...siteSettings, ...cfg.siteSettings };
         }
       } catch(e) { console.error('loadAdminPageData error:', e); }
+      applySiteSettings();
       renderAdminStats();
       renderAdminProductTable();
       renderAdminRecentOrders();
@@ -510,6 +547,25 @@
         renderProductFilterSelectors({});
       }
       openModal('product-modal');
+    }
+
+    function openSiteSettings() {
+      document.getElementById('ss-name').value       = siteSettings.name        || '';
+      document.getElementById('ss-logo-url').value   = siteSettings.logoUrl     || '';
+      document.getElementById('ss-footer').value     = siteSettings.footerText  || '';
+      document.getElementById('ss-accent').value     = siteSettings.accentColor || '#c8522a';
+      openModal('site-settings-modal');
+    }
+
+    async function saveSiteSettings() {
+      siteSettings.name        = document.getElementById('ss-name').value.trim()      || 'The.Pouches';
+      siteSettings.logoUrl     = toRawUrl(document.getElementById('ss-logo-url').value.trim());
+      siteSettings.footerText  = document.getElementById('ss-footer').value.trim()    || '';
+      siteSettings.accentColor = document.getElementById('ss-accent').value;
+      applySiteSettings();
+      await saveConfig();
+      closeModal('site-settings-modal');
+      showToast('Settings saved', 'Site name, logo and colors updated.');
     }
 
     // DOMContentLoaded — check session

@@ -50,7 +50,7 @@ async function saveConfig() {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ hero: heroData, heroBanners, schedule, pickupInstructions, filters: filterDefs, slides: sliderSlides })
+      body: JSON.stringify({ hero: heroData, heroBanners, schedule, pickupInstructions, filters: filterDefs, slides: sliderSlides, siteSettings })
     });
     if (res.status === 401) { handleAuthFailure(); return false; }
     if (!res.ok) { alert('Failed to save changes (' + res.status + ').'); return false; }
@@ -87,11 +87,49 @@ async function loadData() {
       if (config.pickupInstructions) pickupInstructions = config.pickupInstructions;
       if (Array.isArray(config.filters)) filterDefs = config.filters;
       if (Array.isArray(config.slides)) sliderSlides = config.slides;
+      if (config.siteSettings) siteSettings = { ...siteSettings, ...config.siteSettings };
     }
 
     const ct = localStorage.getItem('pouches-cart');
     if (ct) cart = JSON.parse(ct);
   } catch(e) { console.error('Failed to load data:', e); }
+}
+
+// ── SITE SETTINGS ──
+function applySiteSettings() {
+  const s = siteSettings;
+  // Shop name in header logo
+  const logoEl = document.getElementById('site-logo-text');
+  if (logoEl && s.name) {
+    // Format: split on '.' to colorize like "The.Pouches"
+    const parts = s.name.split('.');
+    if (parts.length > 1) {
+      logoEl.innerHTML = parts[0] + '<span>.</span>' + parts.slice(1).join('.');
+    } else {
+      logoEl.textContent = s.name;
+    }
+  }
+  // Logo image (replaces text if set)
+  const logoImg = document.getElementById('site-logo-img');
+  if (logoImg) {
+    if (s.logoUrl) {
+      logoImg.src = s.logoUrl;
+      logoImg.style.display = 'block';
+      if (logoEl) logoEl.style.display = 'none';
+    } else {
+      logoImg.style.display = 'none';
+      if (logoEl) logoEl.style.display = '';
+    }
+  }
+  // Footer text
+  const footerEl = document.getElementById('site-footer-text');
+  if (footerEl && s.footerText) footerEl.textContent = s.footerText;
+  // Page title
+  if (s.name) document.title = s.name;
+  // Accent color
+  if (s.accentColor) {
+    document.documentElement.style.setProperty('--accent', s.accentColor);
+  }
 }
 
 // ── SSE ──
@@ -119,6 +157,7 @@ async function connectSSE() {
   }
   const es = new EventSource(url);
   currentSSE = es;
+
   es.addEventListener('products', (e) => {
     try {
       products = JSON.parse(e.data);
@@ -126,22 +165,42 @@ async function connectSSE() {
       syncCartWithStock();
     } catch(err) {}
   });
+
   es.addEventListener('orders', (e) => {
     try {
       if (typeof adminOrders !== 'undefined') adminOrders = JSON.parse(e.data);
       const panel = document.getElementById('orders-overlay');
       if (panel && panel.classList.contains('open') && typeof renderOrders === 'function') renderOrders();
+      // refresh admin page tables if present
+      if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
+      if (typeof renderAdminStats === 'function') renderAdminStats();
     } catch(err) {}
   });
+
   es.addEventListener('new_order', (e) => {
     try {
       const order = JSON.parse(e.data);
       if (typeof handleNewOrder === 'function') handleNewOrder(order);
     } catch(err) {}
   });
+
   es.onerror = () => {
     es.close(); currentSSE = null;
-    setTimeout(connectSSE, 3000);
+    // reconnect after 3s, then re-fetch orders in case we missed any while disconnected
+    setTimeout(async () => {
+      await connectSSE();
+      if (isAdmin && typeof adminOrders !== 'undefined') {
+        try {
+          const r = await fetch('/api/orders', { headers: authHeaders() });
+          if (r.ok) {
+            adminOrders = await r.json();
+            if (typeof renderOrders === 'function') renderOrders();
+            if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
+            if (typeof renderAdminStats === 'function') renderAdminStats();
+          }
+        } catch(e) {}
+      }
+    }, 3000);
   };
 }
 
@@ -662,6 +721,60 @@ function productMatchesActiveFilters(p) {
   }
   return true;
 }
+
+// ── ADMIN ORDER POLLING ──
+// Backup polling every 30s in case SSE drops while tab is in background
+let _pollTimer = null;
+let _lastKnownOrderId = null;
+
+async function pollOrders() {
+  if (!isAdmin || typeof adminOrders === 'undefined') return;
+  try {
+    const r = await fetch('/api/orders', { headers: authHeaders() });
+    if (!r.ok) return;
+    const fresh = await r.json();
+    // Check if there are new orders we didn't know about
+    const freshIds = new Set(fresh.map(o => o.id));
+    const newOrders = fresh.filter(o =>
+      (o.status === 'new') &&
+      !adminOrders.some(existing => existing.id === o.id)
+    );
+    adminOrders = fresh;
+    if (newOrders.length) {
+      newOrders.forEach(o => {
+        if (typeof handleNewOrder === 'function') handleNewOrder(o);
+      });
+    } else {
+      // Silently refresh UI
+      if (typeof renderOrders === 'function') {
+        const panel = document.getElementById('orders-overlay');
+        if (panel && panel.classList.contains('open')) renderOrders();
+      }
+      if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
+      if (typeof renderAdminStats === 'function') renderAdminStats();
+    }
+  } catch(e) {}
+}
+
+function startOrderPolling() {
+  stopOrderPolling();
+  _pollTimer = setInterval(pollOrders, 10000);
+}
+
+function stopOrderPolling() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+}
+
+// ── VISIBILITY RECONNECT ──
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  // Reconnect SSE if it dropped
+  if (!currentSSE || currentSSE.readyState === 2) {
+    await connectSSE();
+  }
+  // Always refetch orders immediately when switching back to tab
+  await pollOrders();
+});
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {

@@ -354,7 +354,7 @@ async function initShop() {
 
   renderHero(); renderGrid(); renderSlider();
   await loadData();
-  renderHero(); renderGrid(); renderSlider();
+  applySiteSettings(); renderHero(); renderGrid(); renderSlider();
   updateCartBtn(); connectSSE();
 
   const confirmOverlay = document.getElementById('confirm-overlay');
