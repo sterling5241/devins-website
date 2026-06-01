@@ -91,7 +91,7 @@
       <a class="admin-topbar-logo" href="admin.html">The<span>.</span>Pouches <span style="font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:400;opacity:.5;">Admin</span></a>
       <div class="admin-topbar-actions">
         <button onclick="openProductModal()">+ Product</button>
-        <button onclick="openFiltersModal()">🏷 Filters</button>
+
         <button onclick="openHeroModal()">🖼 Banner</button>
         <button onclick="openSliderModal()">🎞 Slider</button>
         <button onclick="openPickupInstructionsModal()">📋 Pickup</button>
@@ -293,7 +293,6 @@
       <div class="orders-tabs">
         <button class="orders-tab active" data-filter="all" onclick="setOrderFilter('all')">All <span class="tab-count" id="tab-count-all"></span></button>
         <button class="orders-tab" data-filter="new" onclick="setOrderFilter('new')">New <span class="tab-count" id="tab-count-new"></span></button>
-        <button class="orders-tab" data-filter="ready" onclick="setOrderFilter('ready')">Ready <span class="tab-count" id="tab-count-ready"></span></button>
         <button class="orders-tab" data-filter="picked-up" onclick="setOrderFilter('picked-up')">Done <span class="tab-count" id="tab-count-picked-up"></span></button>
         <button class="orders-tab" data-filter="cancelled" onclick="setOrderFilter('cancelled')">Cancelled <span class="tab-count" id="tab-count-cancelled"></span></button>
       </div>
@@ -400,7 +399,7 @@
 
     function renderAdminStats() {
       document.getElementById('stat-products').textContent = products.length;
-      const openOrders = adminOrders.filter(o => o.status === 'new' || o.status === 'ready').length;
+      const openOrders = adminOrders.filter(o => o.status === 'new').length;
       document.getElementById('stat-open-orders').textContent = openOrders;
       const rev = adminOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + parseFloat(o.total || 0), 0);
       document.getElementById('stat-revenue').textContent = '$' + rev.toFixed(2);
@@ -459,40 +458,12 @@
       }).join('');
     }
 
-// Standalone saveProduct — reads plain URL input, no drop zone
-async function saveProduct() {
-  const name  = document.getElementById('edit-name').value.trim();
-  const desc  = document.getElementById('edit-desc').value.trim();
-  const price = parseFloat(document.getElementById('edit-price').value);
-  if (!name || !desc || isNaN(price)) { alert('Please fill in Name, Description, and Price.'); return; }
-  const updated = {
-    name,
-    desc,
-    price,
-    cost:     parseFloat(document.getElementById('edit-cost').value)  || 0,
-    badge:    document.getElementById('edit-badge').value.trim()      || null,
-    category: document.getElementById('edit-category').value.trim()   || '',
-    img:      document.getElementById('edit-img').value.trim()        || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
-    qty:      parseInt(document.getElementById('edit-qty').value)     || 0,
-    maxQty:   parseInt(document.getElementById('edit-max-qty').value) || null,
-    filters:  collectProductFilters(),
-  };
-  try {
-    const res = editingId
-      ? await fetch(`/api/products/${editingId}`, { method: 'PUT',  headers: authHeaders(), body: JSON.stringify(updated) })
-      : await fetch('/api/products',               { method: 'POST', headers: authHeaders(), body: JSON.stringify(updated) });
-    if (res.status === 401) { handleAuthFailure(); return; }
-    if (!res.ok) { const d = await res.json().catch(()=>({})); alert('Failed to save: ' + (d.error || res.status)); return; }
-    const pRes = await fetch('/api/products'); if (pRes.ok) products = await pRes.json();
-  } catch(e) { alert('Network error saving product.'); return; }
-  closeModal('product-modal');
-}
-
-async function adminSaveProduct() {
-  await saveProduct();
-  renderAdminProductTable();
-  renderAdminStats();
-}
+    // Wrappers that refresh the table after save/delete
+    async function adminSaveProduct() {
+      await saveProduct();
+      renderAdminProductTable();
+      renderAdminStats();
+    }
 
     async function adminDeleteProduct(id) {
       await deleteProduct(id);
