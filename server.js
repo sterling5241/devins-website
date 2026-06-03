@@ -205,6 +205,8 @@ app.get('/api/health', (req, res) => {
     ok: true,
     passwordIsDefault: !process.env.ADMIN_PASSWORD,
     passwordLength: ADMIN_PASS.length,
+    jwtSecretIsDefault: !process.env.JWT_SECRET,
+    jwtSecretLength: JWT_SECRET.length,
   });
 });
 
