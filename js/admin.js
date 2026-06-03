@@ -115,13 +115,15 @@ function handleNewOrder(order) {
   showToast(`🛍 New Order — $${esc(order.total)}`, `${itemSummary} · ${esc(order.vehicle)} · ${plate}`);
   playNotificationBeep();
   if ('Notification' in window && Notification.permission === 'granted') {
-    const n = new Notification(`New Order — $${esc(order.total)}`, {
-      body: `${itemSummary}\n${esc(order.vehicle)} · ${plate}`,
-      icon: '/favicon.ico',
-      tag: `order-${order.id}`,
-      renotify: true,
-    });
-    n.onclick = () => { window.focus(); openOrders(); n.close(); };
+    try {
+      const n = new Notification(`New Order — $${esc(order.total)}`, {
+        body: `${itemSummary}\n${esc(order.vehicle)} · ${plate}`,
+        tag: `order-${order.id}`,
+        renotify: true,
+      });
+      n.onerror = (e) => console.error('Notification error:', e);
+      n.onclick = () => { window.focus(); openOrders(); n.close(); };
+    } catch(e) { console.error('Notification failed:', e); }
   }
   newOrderCount++; updateOrdersBadge();
   const panel = document.getElementById('orders-overlay');

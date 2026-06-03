@@ -655,9 +655,24 @@ function requestNotifPermission() {
 
 function updateNotifBtn(permission) {
   const btn = document.getElementById('notif-btn');
-  if (!btn) return;
-  // show button only when permission can still be requested (not yet denied in browser settings)
-  btn.style.display = (permission === 'default') ? '' : 'none';
+  if (btn) btn.style.display = (permission === 'default') ? '' : 'none';
+  const testBtn = document.getElementById('test-notif-btn');
+  if (testBtn) testBtn.style.display = (permission === 'granted') ? '' : 'none';
+}
+
+function testNotification() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification('Test — New Order', {
+      body: 'Sample Item ×2\nSedan · ABC123',
+      tag: 'test-notif',
+    });
+    n.onerror = (e) => { showToast('Notification failed', 'Check browser/OS settings.', 6000); console.error(e); };
+    n.onclick = () => n.close();
+  } catch(e) {
+    showToast('Notification error', e.message, 6000);
+    console.error(e);
+  }
 }
 
 async function enableNotifications() {

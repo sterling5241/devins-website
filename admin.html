@@ -102,6 +102,7 @@
         <button onclick="openHoursModal()">📅 Hours</button>
         <button onclick="openSiteSettings()">⚙ Settings</button>
         <button id="notif-btn" onclick="enableNotifications()" style="display:none">🔔 Enable Alerts</button>
+        <button id="test-notif-btn" onclick="testNotification()" style="display:none">🔔 Test</button>
         <button onclick="openOrders()">📦 Orders <span class="orders-badge" id="orders-badge"></span></button>
         <button onclick="openFinancials()">💰 Financials</button>
         <button class="btn-danger" onclick="doLogout()">Log Out</button>
@@ -625,15 +626,20 @@
       try {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') { showToast('Blocked', 'Allow notifications in browser settings, then try again.', 6000); return; }
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        await navigator.serviceWorker.ready;
+        await navigator.serviceWorker.register('/sw.js');
+        const reg = await navigator.serviceWorker.ready; // wait for SW to be active
         const keyRes = await fetch('/api/push-vapid-key');
         const { publicKey } = await keyRes.json();
         if (!publicKey) { showToast('Error', 'Push not configured on server.', 5000); return; }
-        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
-        await fetch('/api/push-subscribe', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+        // Check if already subscribed (avoid duplicate)
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+        }
+        const saveRes = await fetch('/api/push-subscribe', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+        if (!saveRes.ok) throw new Error('Server rejected subscription');
         showToast('Persistent Notifications On', 'You\'ll be notified even when this tab is closed.');
-      } catch (e) { console.error(e); showToast('Error', 'Could not enable persistent notifications.', 5000); }
+      } catch (e) { console.error('Push subscribe error:', e); showToast('Error', 'Could not enable: ' + e.message, 6000); }
     }
 
     async function disablePersistentNotifs() {
