@@ -370,11 +370,14 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- SCRIPTS: shared + shop (for renderGrid) + admin -->
-  <script src="js/shared.js?v=7"></script>
-  <script src="js/shop.js?v=7"></script>
-  <script src="js/admin.js?v=7"></script>
+  <script src="js/shared.js?v=8"></script>
+  <script src="js/shop.js?v=8"></script>
+  <script src="js/admin.js?v=8"></script>
   <script>
-    // ── ADMIN PAGE LOGIC ──────────────────────────────────────────────────────
+    // Synchronous check — runs at parse time before DOMContentLoaded
+    if (localStorage.getItem('pouches-admin-token')) {
+      document.body.classList.add('admin-mode');
+    }
 
     async function doLogin() {
       const pw = document.getElementById('login-password').value;
