@@ -106,6 +106,7 @@
         <button onclick="openFinancials()">💰 Financials</button>
         <button class="btn-danger" onclick="doLogout()">Log Out</button>
         <a class="view-shop" href="index.html" target="_blank">View Shop ↗</a>
+        <span id="version-chip" style="display:none;font-size:0.72rem;color:rgba(255,255,255,0.5);white-space:nowrap;padding-left:0.4rem;border-left:1px solid rgba(255,255,255,0.15);margin-left:0.2rem;"></span>
       </div>
     </div>
     <div class="admin-stats-strip">
@@ -447,6 +448,33 @@
       document.getElementById('login-error').classList.remove('show');
     }
 
+    function parseVersionFile(text) {
+      const section = (label) => {
+        const re = new RegExp(`\\*\\*${label}\\*\\*([\\s\\S]*?)(?=\\*\\*|$)`, 'i');
+        const block = (text.match(re) || [])[1] || '';
+        const get = (key) => (block.match(new RegExp(`${key}:(.*)`, 'i')) || [])[1]?.trim() || '';
+        return { version: get('ver'), date: get('date'), desc: get('desc') };
+      };
+      return { admin: section('ADMIN'), customer: section('CUSTERMER') };
+    }
+
+    async function loadVersionChip() {
+      try {
+        const res = await fetch('https://raw.githubusercontent.com/sterling5241/devins-website/main/version');
+        if (!res.ok) return;
+        const { admin, customer } = parseVersionFile(await res.text());
+        const chip = document.getElementById('version-chip');
+        if (!chip) return;
+        const url = 'https://github.com/sterling5241/devins-website/blob/main/version';
+        const truncate = (s, n) => s.length > n ? s.slice(0, n) + '…' : s;
+        chip.innerHTML =
+          `Admin v${esc(admin.version)} · ${esc(admin.date)} · ${esc(truncate(admin.desc, 40))} &nbsp;` +
+          `Customer v${esc(customer.version)} · ${esc(customer.date)} · ${esc(truncate(customer.desc, 40))} &nbsp;` +
+          `<a href="${url}" target="_blank" style="color:rgba(255,255,255,0.65);text-decoration:underline;">changelog ↗</a>`;
+        chip.style.display = '';
+      } catch(e) {}
+    }
+
     async function loadAdminPageData() {
       try {
         const [pRes, oRes, cRes] = await Promise.all([
@@ -465,6 +493,7 @@
           if (cfg.siteSettings) siteSettings = { ...siteSettings, ...cfg.siteSettings };
         }
       } catch(e) { console.error('loadAdminPageData error:', e); }
+      loadVersionChip();
       applySiteSettings();
       renderAdminStats();
       renderAdminProductTable();
