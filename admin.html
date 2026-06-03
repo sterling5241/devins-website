@@ -403,6 +403,18 @@
       }
     }
 
+    async function handleAuthFailure() {
+      adminToken = null;
+      localStorage.removeItem('pouches-admin-token');
+      isAdmin = false;
+      document.body.classList.remove('admin-mode');
+      adminOrders = [];
+      if (typeof stopOrderPolling === 'function') stopOrderPolling();
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').classList.remove('show');
+      showToast('Session expired — please log in again.', '', 6000);
+    }
+
     function activateAdminPage() {
       isAdmin = true;
       document.body.classList.add('admin-mode');

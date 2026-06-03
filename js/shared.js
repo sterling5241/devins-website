@@ -579,7 +579,7 @@ function getDropZoneValue(zoneId) {
 }
 
 // ── MODAL HELPERS ──
-function openModal(id) { document.getElementById(id).classList.add('open'); }
+function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ── TOAST ──
