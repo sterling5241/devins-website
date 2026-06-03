@@ -878,4 +878,4 @@ async function initAdmin() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initAdmin);
+// initAdmin is not auto-run — admin.html handles its own DOMContentLoaded init

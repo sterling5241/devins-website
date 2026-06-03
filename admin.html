@@ -688,8 +688,8 @@
             localStorage.removeItem('pouches-admin-token');
           }
         } catch(e) {
-          adminToken = null;
-          localStorage.removeItem('pouches-admin-token');
+          // network error — keep token, try again on next load
+          activateAdminPage();
         }
       }
     });
