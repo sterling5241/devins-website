@@ -109,6 +109,7 @@ function updateOrdersBadge() {
 }
 
 function handleNewOrder(order) {
+  console.log('[handleNewOrder] called, isAdmin=', isAdmin, 'permission=', Notification.permission, 'order=', order?.id);
   if (!isAdmin) return;
   const itemSummary = order.items.map(i => `${esc(i.name)} ×${i.qty}`).join(', ');
   const plate = esc(order.plate).toUpperCase();
