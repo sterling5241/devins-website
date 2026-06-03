@@ -167,7 +167,7 @@ app.use(express.static(path.join(__dirname)));
 const revokedTokens = new Set();
 
 function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 }
 
 function verifyToken(token) {

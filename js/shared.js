@@ -152,6 +152,9 @@ async function connectSSE() {
       if (tRes.ok) {
         const { ticket } = await tRes.json();
         if (ticket) url = `/api/events?ticket=${encodeURIComponent(ticket)}`;
+      } else if (tRes.status === 401) {
+        handleAuthFailure();
+        return;
       }
     } catch (e) {}
   }

@@ -866,13 +866,14 @@ async function initAdmin() {
   try {
     const oRes = await fetch('/api/orders', { headers: authHeaders() });
     if (oRes.ok) adminOrders = await oRes.json();
+    else if (oRes.status === 401) { handleAuthFailure(); return; }
   } catch(e) {}
-  applySiteSettings(); renderHero(); renderGrid(); renderSlider(); updateCartBtn(); connectSSE();
+  applySiteSettings(); renderHero(); renderGrid(); renderSlider(); updateCartBtn();
   if (adminToken) {
     try {
       const res = await fetch('/api/session', { headers: authHeaders() });
       const data = await res.json();
-      if (data.valid) completeLogin();
+      if (data.valid) { connectSSE(); completeLogin(); }
       else { adminToken = null; localStorage.removeItem('pouches-admin-token'); }
     } catch(e) { adminToken = null; localStorage.removeItem('pouches-admin-token'); }
   }
