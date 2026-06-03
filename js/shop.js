@@ -15,7 +15,7 @@ function renderGrid() {
   grid.innerHTML = visible.map(p => `
     <div class="card" data-id="${p.id}">
       <div class="card-image-wrap">
-        <img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy" onerror="this.src=siteSettings.defaultProductImg||DEFAULT_PRODUCT_IMG" />
+        <img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy" onerror="this.onerror=null;this.src=siteSettings.defaultProductImg||DEFAULT_PRODUCT_IMG" />
         ${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}
         <button class="quick-add" onclick="event.stopPropagation(); addToCart(${p.id}, this)" ${p.qty != null && p.qty <= 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;background:#999"' : ''}>+ Add to Cart</button>
       </div>
@@ -163,7 +163,7 @@ function renderCartModal() {
       <div class="cart-items">
         ${cart.map(c => `
           <div class="cart-item">
-            <img class="cart-item-img" src="${esc(c.img)}" onerror="this.src=siteSettings.defaultProductImg||DEFAULT_PRODUCT_IMG" />
+            <img class="cart-item-img" src="${esc(c.img)}" onerror="this.onerror=null;this.src=siteSettings.defaultProductImg||DEFAULT_PRODUCT_IMG" />
             <div class="cart-item-info">
               <div class="cart-item-name">${esc(c.name)}</div>
               <div class="cart-item-meta">$${c.price.toFixed(2)} each</div>
