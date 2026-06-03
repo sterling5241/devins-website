@@ -43,7 +43,11 @@ function renderOrders() {
       return searchable.includes(orderSearchQuery);
     });
   }
-  filtered = [...filtered].sort((a, b) => b.id - a.id);
+  const statusPriority = s => (s === 'new' ? 0 : 1);
+  filtered = [...filtered].sort((a, b) => {
+    const sp = statusPriority(a.status || 'new') - statusPriority(b.status || 'new');
+    return sp !== 0 ? sp : b.id - a.id;
+  });
   if (!filtered.length) {
     const label = orderSearchQuery ? 'matching' : (orderFilter === 'all' ? '' : orderFilter);
     list.innerHTML = `<div class="orders-empty">No ${label} orders found.</div>`;
