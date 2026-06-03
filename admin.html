@@ -370,9 +370,9 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- SCRIPTS: shared + shop (for renderGrid) + admin -->
-  <script src="js/shared.js?v=4"></script>
-  <script src="js/shop.js?v=4"></script>
-  <script src="js/admin.js?v=4"></script>
+  <script src="js/shared.js?v=5"></script>
+  <script src="js/shop.js?v=5"></script>
+  <script src="js/admin.js?v=5"></script>
   <script>
     // ── ADMIN PAGE LOGIC ──────────────────────────────────────────────────────
 
@@ -684,11 +684,13 @@
           if (data.valid) {
             activateAdminPage();
           } else {
+            showToast('Session check failed (' + res.status + ')', JSON.stringify(data).slice(0, 80), 10000);
             adminToken = null;
             localStorage.removeItem('pouches-admin-token');
           }
         } catch(e) {
           // network error — keep token, try again on next load
+          showToast('Session network error', e.message, 8000);
           activateAdminPage();
         }
       }

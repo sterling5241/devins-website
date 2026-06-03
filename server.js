@@ -153,10 +153,7 @@ app.get('/manifest.json', async (req, res) => {
       display: 'standalone',
       background_color: '#1a1612',
       theme_color: s.accentColor || '#1a1612',
-      icons: [
-        { src: '/favicon.ico', sizes: '192x192', type: 'image/x-icon', purpose: 'any maskable' },
-        { src: '/favicon.ico', sizes: '512x512', type: 'image/x-icon', purpose: 'any maskable' }
-      ]
+      icons: []
     });
   } catch (e) { res.status(500).json({ error: 'DB error' }); }
 });
