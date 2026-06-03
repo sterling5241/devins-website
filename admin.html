@@ -449,7 +449,6 @@
           fetch('/api/config')
         ]);
         if (pRes.ok) products = await pRes.json();
-        if (oRes.status === 401) { handleAuthFailure(); return; }
         if (oRes.ok) adminOrders = await oRes.json();
         if (cRes.ok) {
           const cfg = await cRes.json();
