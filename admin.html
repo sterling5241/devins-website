@@ -22,7 +22,7 @@
     .admin-topbar { background:var(--ink); color:var(--cream); padding:0 clamp(1rem,5vw,4rem); min-height:64px; height:auto; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
     .admin-topbar-logo { font-family:'Playfair Display',serif; font-weight:900; font-size:1.3rem; color:var(--cream); text-decoration:none; }
     .admin-topbar-logo span { color:var(--accent); }
-    .admin-topbar-actions { display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; }
+    .admin-topbar-actions { display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; min-width:0; }
     .admin-topbar-actions button { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:#fff; font-family:'DM Sans',sans-serif; font-size:0.82rem; font-weight:500; padding:0.45rem 0.9rem; border-radius:4px; cursor:pointer; transition:background 0.15s; white-space:nowrap; }
     .admin-topbar-actions button:hover { background:rgba(255,255,255,0.22); }
     .admin-topbar-actions .btn-danger { border-color:rgba(239,68,68,0.5); }
@@ -60,9 +60,9 @@
     .mini-order-meta { font-size:0.78rem; color:var(--muted); }
     .mini-order-total { font-weight:700; font-variant-numeric:tabular-nums; }
     @media (max-width:640px) {
-      .admin-topbar { padding:0 0.75rem; gap:0.5rem; flex-wrap:nowrap; }
+      .admin-topbar { padding:0 0.75rem; gap:0.5rem; flex-wrap:nowrap; overflow:hidden; }
       .admin-topbar-logo { flex-shrink:0; font-size:1.1rem; }
-      .admin-topbar-actions { overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; padding:0.6rem 0; scrollbar-width:none; }
+      .admin-topbar-actions { overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; padding:0.6rem 0; scrollbar-width:none; flex:1; min-width:0; }
       .admin-topbar-actions::-webkit-scrollbar { display:none; }
       .admin-topbar-actions button, .admin-topbar-actions a.view-shop { flex-shrink:0; font-size:0.74rem; padding:0.4rem 0.6rem; white-space:nowrap; }
       .admin-stats-strip { gap:1rem; }
