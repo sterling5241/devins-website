@@ -337,6 +337,10 @@
           <input type="text" id="ss-logo-url" placeholder="https://... (replaces text logo)">
         </div>
         <div class="field-group">
+          <label>Default Product Photo URL — optional</label>
+          <input type="text" id="ss-default-img" placeholder="https://... (fallback when no product image is set)">
+        </div>
+        <div class="field-group">
           <label>Footer Text</label>
           <input type="text" id="ss-footer" placeholder="All items sold as-is · Questions? Just reach out.">
         </div>
@@ -581,10 +585,11 @@
     }
 
     function openSiteSettings() {
-      document.getElementById('ss-name').value       = siteSettings.name        || '';
-      document.getElementById('ss-logo-url').value   = siteSettings.logoUrl     || '';
-      document.getElementById('ss-footer').value     = siteSettings.footerText  || '';
-      document.getElementById('ss-accent').value     = siteSettings.accentColor || '#c8522a';
+      document.getElementById('ss-name').value        = siteSettings.name             || '';
+      document.getElementById('ss-logo-url').value    = siteSettings.logoUrl          || '';
+      document.getElementById('ss-default-img').value = siteSettings.defaultProductImg || '';
+      document.getElementById('ss-footer').value      = siteSettings.footerText       || '';
+      document.getElementById('ss-accent').value      = siteSettings.accentColor      || '#c8522a';
       const persistChk = document.getElementById('ss-persistent-notifs');
       const statusEl   = document.getElementById('ss-notif-status');
       if (persistChk) {
@@ -607,10 +612,11 @@
     }
 
     async function saveSiteSettings() {
-      siteSettings.name        = document.getElementById('ss-name').value.trim()      || siteSettings.name;
-      siteSettings.logoUrl     = toRawUrl(document.getElementById('ss-logo-url').value.trim());
-      siteSettings.footerText  = document.getElementById('ss-footer').value.trim()    || '';
-      siteSettings.accentColor = document.getElementById('ss-accent').value;
+      siteSettings.name             = document.getElementById('ss-name').value.trim()        || siteSettings.name;
+      siteSettings.logoUrl          = toRawUrl(document.getElementById('ss-logo-url').value.trim());
+      siteSettings.defaultProductImg = toRawUrl(document.getElementById('ss-default-img').value.trim());
+      siteSettings.footerText       = document.getElementById('ss-footer').value.trim()      || '';
+      siteSettings.accentColor      = document.getElementById('ss-accent').value;
       applySiteSettings();
       await saveConfig();
       closeModal('site-settings-modal');

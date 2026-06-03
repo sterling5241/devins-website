@@ -8,7 +8,8 @@ let sliderSlides = [];
 let filterDefs = [];
 let activeFilters = {};
 
-let siteSettings = { name: 'The.Pouches', logoUrl: '', footerText: 'All items sold as-is · Questions? Just reach out.', accentColor: '#c8522a' };
+const DEFAULT_PRODUCT_IMG = 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80';
+let siteSettings = { name: 'The.Pouches', logoUrl: '', footerText: 'All items sold as-is · Questions? Just reach out.', accentColor: '#c8522a', defaultProductImg: '' };
 
 let heroData = { bg: '', bgSize: 100, bgPosX: 0, bgPosY: 0, bgRotation: 0, bgFill: '', bgPosVer: 2 };
 let heroBanners = []; // array of { bg, bgColor, textColor, content, duration }

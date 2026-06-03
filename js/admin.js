@@ -819,7 +819,7 @@ async function saveProduct() {
     cost:     parseFloat(document.getElementById('edit-cost').value)  || 0,
     badge:    document.getElementById('edit-badge').value.trim()      || null,
     category: document.getElementById('edit-category').value.trim()   || '',
-    img: toRawUrl(document.getElementById('edit-img').value.trim())        || 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
+    img: toRawUrl(document.getElementById('edit-img').value.trim())        || siteSettings.defaultProductImg || DEFAULT_PRODUCT_IMG,
     qty:      parseInt(document.getElementById('edit-qty').value)     || 0,
     maxQty:   parseInt(document.getElementById('edit-max-qty').value) || null,
     filters:  {},
