@@ -370,9 +370,9 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- SCRIPTS: shared + shop (for renderGrid) + admin -->
-  <script src="js/shared.js?v=6"></script>
-  <script src="js/shop.js?v=6"></script>
-  <script src="js/admin.js?v=6"></script>
+  <script src="js/shared.js?v=7"></script>
+  <script src="js/shop.js?v=7"></script>
+  <script src="js/admin.js?v=7"></script>
   <script>
     // ── ADMIN PAGE LOGIC ──────────────────────────────────────────────────────
 
@@ -449,6 +449,7 @@
           fetch('/api/config')
         ]);
         if (pRes.ok) products = await pRes.json();
+        if (oRes.status === 401) { handleAuthFailure(); return; }
         if (oRes.ok) adminOrders = await oRes.json();
         if (cRes.ok) {
           const cfg = await cRes.json();
@@ -678,18 +679,7 @@
       }
 
       if (adminToken) {
-        try {
-          const res  = await fetch('/api/session', { headers: authHeaders() });
-          const data = await res.json();
-          if (data.valid) {
-            activateAdminPage();
-          } else {
-            adminToken = null;
-            localStorage.removeItem('pouches-admin-token');
-          }
-        } catch(e) {
-          activateAdminPage();
-        }
+        activateAdminPage();
       }
     });
   </script>
