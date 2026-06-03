@@ -149,12 +149,14 @@ async function connectSSE() {
   if (adminToken) {
     try {
       const tRes = await fetch('/api/sse-ticket', { method: 'POST', headers: authHeaders() });
+      console.log('[SSE] ticket fetch status:', tRes.status);
       if (tRes.ok) {
         const { ticket } = await tRes.json();
         if (ticket) url = `/api/events?ticket=${encodeURIComponent(ticket)}`;
       }
-    } catch (e) {}
+    } catch (e) { console.log('[SSE] ticket fetch error:', e); }
   }
+  console.log('[SSE] connecting, adminToken present:', !!adminToken, 'url:', url);
   const es = new EventSource(url);
   currentSSE = es;
 
@@ -167,6 +169,7 @@ async function connectSSE() {
   });
 
   es.addEventListener('orders', (e) => {
+    console.log('[SSE] orders event received');
     try {
       if (typeof adminOrders !== 'undefined') adminOrders = JSON.parse(e.data);
       const panel = document.getElementById('orders-overlay');
@@ -178,10 +181,11 @@ async function connectSSE() {
   });
 
   es.addEventListener('new_order', (e) => {
+    console.log('[SSE] new_order event received');
     try {
       const order = JSON.parse(e.data);
       if (typeof handleNewOrder === 'function') handleNewOrder(order);
-    } catch(err) {}
+    } catch(err) { console.log('[SSE] new_order parse error:', err); }
   });
 
   es.onerror = () => {

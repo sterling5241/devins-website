@@ -363,4 +363,7 @@ async function initShop() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initShop);
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.querySelector('.admin-gate')) return;
+  initShop();
+});
