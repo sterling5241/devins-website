@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const JWT_SECRET      = process.env.JWT_SECRET      || 'change-me-in-production';
-const ADMIN_PASS      = process.env.ADMIN_PASSWORD  || 'admin123';
+const ADMIN_PASS      = (process.env.ADMIN_PASSWORD || 'admin123').trim();
 const VAPID_MAILTO    = process.env.VAPID_MAILTO    || 'mailto:admin@example.com';
 const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY  || null;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || null;
@@ -197,6 +197,14 @@ function broadcastSSE(event, data, adminOnly = false) {
     try { client.res.write(payload); } catch {}
   }
 }
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    passwordIsDefault: !process.env.ADMIN_PASSWORD,
+    passwordLength: ADMIN_PASS.length,
+  });
+});
 
 // ── AUTH ROUTES ───────────────────────────────────────────────────────────────
 app.post('/api/login', async (req, res) => {
