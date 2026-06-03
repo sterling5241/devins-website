@@ -161,6 +161,12 @@ app.get('/manifest.json', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'DB error' }); }
 });
 
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname)));
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
