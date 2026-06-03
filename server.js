@@ -158,13 +158,15 @@ app.get('/manifest.json', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'DB error' }); }
 });
 
-app.use((req, res, next) => {
-  if (req.path.endsWith('.html')) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+app.use(express.static(path.join(__dirname), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
   }
-  next();
-});
-app.use(express.static(path.join(__dirname)));
+}));
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 const revokedTokens = new Set();
