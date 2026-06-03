@@ -133,6 +133,11 @@ function applySiteSettings() {
 }
 
 // ── SSE ──
+function refreshAdminTables() {
+  if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
+  if (typeof renderAdminStats === 'function') renderAdminStats();
+}
+
 let currentSSE = null;
 async function connectSSE() {
   if (currentSSE) { try { currentSSE.close(); } catch(e) {} currentSSE = null; }
@@ -149,14 +154,12 @@ async function connectSSE() {
   if (adminToken) {
     try {
       const tRes = await fetch('/api/sse-ticket', { method: 'POST', headers: authHeaders() });
-      console.log('[SSE] ticket fetch status:', tRes.status);
       if (tRes.ok) {
         const { ticket } = await tRes.json();
         if (ticket) url = `/api/events?ticket=${encodeURIComponent(ticket)}`;
       }
-    } catch (e) { console.log('[SSE] ticket fetch error:', e); }
+    } catch (e) {}
   }
-  console.log('[SSE] connecting, adminToken present:', !!adminToken, 'url:', url);
   const es = new EventSource(url);
   currentSSE = es;
 
@@ -169,23 +172,19 @@ async function connectSSE() {
   });
 
   es.addEventListener('orders', (e) => {
-    console.log('[SSE] orders event received');
     try {
       if (typeof adminOrders !== 'undefined') adminOrders = JSON.parse(e.data);
       const panel = document.getElementById('orders-overlay');
       if (panel && panel.classList.contains('open') && typeof renderOrders === 'function') renderOrders();
-      // refresh admin page tables if present
-      if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
-      if (typeof renderAdminStats === 'function') renderAdminStats();
+      refreshAdminTables();
     } catch(err) {}
   });
 
   es.addEventListener('new_order', (e) => {
-    console.log('[SSE] new_order event received');
     try {
       const order = JSON.parse(e.data);
       if (typeof handleNewOrder === 'function') handleNewOrder(order);
-    } catch(err) { console.log('[SSE] new_order parse error:', err); }
+    } catch(err) { console.error('new_order event error:', err); }
   });
 
   es.onerror = () => {
@@ -199,8 +198,7 @@ async function connectSSE() {
           if (r.ok) {
             adminOrders = await r.json();
             if (typeof renderOrders === 'function') renderOrders();
-            if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
-            if (typeof renderAdminStats === 'function') renderAdminStats();
+            refreshAdminTables();
           }
         } catch(e) {}
       }
@@ -794,8 +792,7 @@ async function pollOrders() {
         const panel = document.getElementById('orders-overlay');
         if (panel && panel.classList.contains('open')) renderOrders();
       }
-      if (typeof renderAdminRecentOrders === 'function') renderAdminRecentOrders();
-      if (typeof renderAdminStats === 'function') renderAdminStats();
+      refreshAdminTables();
     }
   } catch(e) {}
 }

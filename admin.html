@@ -558,14 +558,6 @@
       closeModal('pickup-instructions-modal');
     }
 
-    // Handle new order SSE — refresh mini table
-    const _baseHandleNewOrder = handleNewOrder;
-    function handleNewOrder(order) {
-      _baseHandleNewOrder(order);
-      renderAdminRecentOrders();
-      renderAdminStats();
-    }
-
     // Simplified openProductModal — no drop zone, just URL input
     function openProductModal(id = null) {
       editingId = id;
