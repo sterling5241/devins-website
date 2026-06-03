@@ -6,13 +6,17 @@ const { Pool }   = require('pg');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const path       = require('path');
+const webpush    = require('web-push');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const DATABASE_URL = process.env.DATABASE_URL;
-const JWT_SECRET   = process.env.JWT_SECRET   || 'change-me-in-production';
-const ADMIN_PASS   = process.env.ADMIN_PASSWORD || 'admin123';
+const JWT_SECRET      = process.env.JWT_SECRET      || 'change-me-in-production';
+const ADMIN_PASS      = process.env.ADMIN_PASSWORD  || 'admin123';
+const VAPID_MAILTO    = process.env.VAPID_MAILTO    || 'mailto:admin@example.com';
+const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY  || null;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || null;
 
 if (!DATABASE_URL) {
   console.error('❌  DATABASE_URL environment variable is not set.');
@@ -96,10 +100,67 @@ async function initDB() {
     ON CONFLICT (key) DO NOTHING;
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id         SERIAL PRIMARY KEY,
+      endpoint   TEXT NOT NULL UNIQUE,
+      p256dh     TEXT NOT NULL,
+      auth       TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await query(`
+    INSERT INTO config (key, value) VALUES ('vapid_keys', 'null'::jsonb)
+    ON CONFLICT (key) DO NOTHING;
+  `);
+
+  await initVapid();
   console.log('✅  Database ready');
 }
 
+async function initVapid() {
+  let pub = VAPID_PUBLIC_KEY;
+  let priv = VAPID_PRIVATE_KEY;
+  if (!pub || !priv) {
+    const r = await query(`SELECT value FROM config WHERE key='vapid_keys'`);
+    const stored = r.rows[0]?.value;
+    if (stored && stored.publicKey) {
+      pub = stored.publicKey;
+      priv = stored.privateKey;
+    } else {
+      const keys = webpush.generateVAPIDKeys();
+      pub = keys.publicKey;
+      priv = keys.privateKey;
+      await query(`UPDATE config SET value=$1 WHERE key='vapid_keys'`, [JSON.stringify({ publicKey: pub, privateKey: priv })]);
+      console.log('✅  Generated VAPID keys');
+    }
+  }
+  webpush.setVapidDetails(VAPID_MAILTO, pub, priv);
+  global._vapidPublicKey = pub;
+}
+
 app.use(express.json({ limit: '10mb' }));
+
+app.get('/manifest.json', async (req, res) => {
+  try {
+    const r = await query(`SELECT value FROM config WHERE key='siteSettings'`);
+    const s = r.rows[0]?.value || {};
+    res.json({
+      name: (s.name || 'Admin') + ' Admin',
+      short_name: s.name || 'Admin',
+      start_url: '/admin.html',
+      display: 'standalone',
+      background_color: '#1a1612',
+      theme_color: s.accentColor || '#1a1612',
+      icons: [
+        { src: '/favicon.ico', sizes: '192x192', type: 'image/x-icon', purpose: 'any maskable' },
+        { src: '/favicon.ico', sizes: '512x512', type: 'image/x-icon', purpose: 'any maskable' }
+      ]
+    });
+  } catch (e) { res.status(500).json({ error: 'DB error' }); }
+});
+
 app.use(express.static(path.join(__dirname)));
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
@@ -290,6 +351,35 @@ app.post('/api/upload', requireAdmin, (req, res) => {
   res.status(400).json({ error: 'File uploads are disabled. Please use an image URL instead.' });
 });
 
+// ── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
+app.get('/api/push-vapid-key', (req, res) => {
+  res.json({ publicKey: global._vapidPublicKey || null });
+});
+
+app.post('/api/push-subscribe', requireAdmin, async (req, res) => {
+  const { subscription } = req.body || {};
+  if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth)
+    return res.status(400).json({ error: 'Invalid subscription' });
+  try {
+    await query(
+      `INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (endpoint) DO UPDATE SET p256dh=$2, auth=$3`,
+      [subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth]
+    );
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'DB error' }); }
+});
+
+app.delete('/api/push-subscribe', requireAdmin, async (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+  try {
+    await query(`DELETE FROM push_subscriptions WHERE endpoint=$1`, [endpoint]);
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'DB error' }); }
+});
+
 // ── ORDERS ────────────────────────────────────────────────────────────────────
 function dbToOrder(row) {
   return {
@@ -336,6 +426,24 @@ app.post('/api/order', async (req, res) => {
     broadcastSSE('products', allProducts);
     broadcastSSE('new_order', order, true);
     broadcastSSE('orders', allOrders, true);
+    // Web Push to all subscribed devices
+    try {
+      const subs = await query(`SELECT endpoint, p256dh, auth FROM push_subscriptions`);
+      const payload = JSON.stringify({
+        title: `New Order — $${order.total}`,
+        body: order.items.map(i => `${i.name} ×${i.qty}`).join(', ') + ` · ${order.vehicle} · ${order.plate.toUpperCase()}`,
+        orderId: order.id,
+      });
+      await Promise.allSettled(subs.rows.map(sub =>
+        webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload
+        ).catch(async err => {
+          if (err.statusCode === 410 || err.statusCode === 404)
+            await query(`DELETE FROM push_subscriptions WHERE endpoint=$1`, [sub.endpoint]);
+        })
+      ));
+    } catch (pushErr) { console.error('Push error:', pushErr); }
     res.status(201).json(order);
   } catch (e) { console.error(e); res.status(500).json({ error: 'DB error' }); }
 });

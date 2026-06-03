@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#1a1612">
   <title>Admin — The.Pouches</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/admin.css">
   <style>
@@ -100,6 +101,7 @@
         <button onclick="openPickupInstructionsModal()">📋 Pickup</button>
         <button onclick="openHoursModal()">📅 Hours</button>
         <button onclick="openSiteSettings()">⚙ Settings</button>
+        <button id="notif-btn" onclick="enableNotifications()" style="display:none">🔔 Enable Alerts</button>
         <button onclick="openOrders()">📦 Orders <span class="orders-badge" id="orders-badge"></span></button>
         <button onclick="openFinancials()">💰 Financials</button>
         <button class="btn-danger" onclick="doLogout()">Log Out</button>
@@ -345,6 +347,16 @@
             <span style="font-size:.82rem;color:var(--muted);">Used for buttons, badges, and highlights</span>
           </div>
         </div>
+        <div class="field-group" style="border-top:1px solid var(--border);padding-top:1rem;margin-top:0.5rem;">
+          <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:1rem;">
+            <span>
+              <strong style="display:block;font-size:0.9rem;">Persistent Notifications</strong>
+              <span style="font-size:0.78rem;color:var(--muted);">Get notified of new orders even when this tab is closed.</span>
+            </span>
+            <input type="checkbox" id="ss-persistent-notifs" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent);flex-shrink:0;">
+          </label>
+          <p id="ss-notif-status" style="font-size:0.76rem;color:var(--muted);margin-top:0.4rem;display:none;"></p>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeModal('site-settings-modal')">Cancel</button>
@@ -396,6 +408,13 @@
       connectSSE();
       loadAdminPageData();
       startOrderPolling();
+      requestNotifPermission();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.addEventListener('message', e => {
+          if (e.data?.type === 'open-orders') openOrders();
+        });
+      }
     }
 
     async function doLogout() {
@@ -559,11 +578,29 @@
       document.getElementById('ss-logo-url').value   = siteSettings.logoUrl     || '';
       document.getElementById('ss-footer').value     = siteSettings.footerText  || '';
       document.getElementById('ss-accent').value     = siteSettings.accentColor || '#c8522a';
+      const persistChk = document.getElementById('ss-persistent-notifs');
+      const statusEl   = document.getElementById('ss-notif-status');
+      if (persistChk) {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          persistChk.disabled = true; persistChk.checked = false;
+          statusEl.textContent = 'Push notifications are not supported in this browser.';
+          statusEl.style.display = '';
+        } else if (Notification.permission === 'denied') {
+          persistChk.disabled = true; persistChk.checked = false;
+          statusEl.textContent = 'Notifications are blocked — allow them in browser settings, then reload.';
+          statusEl.style.display = '';
+        } else {
+          persistChk.disabled = false; statusEl.style.display = 'none';
+          navigator.serviceWorker.ready.then(r => r.pushManager.getSubscription()).then(sub => {
+            persistChk.checked = !!sub;
+          });
+        }
+      }
       openModal('site-settings-modal');
     }
 
     async function saveSiteSettings() {
-      siteSettings.name        = document.getElementById('ss-name').value.trim()      || 'The.Pouches';
+      siteSettings.name        = document.getElementById('ss-name').value.trim()      || siteSettings.name;
       siteSettings.logoUrl     = toRawUrl(document.getElementById('ss-logo-url').value.trim());
       siteSettings.footerText  = document.getElementById('ss-footer').value.trim()    || '';
       siteSettings.accentColor = document.getElementById('ss-accent').value;
@@ -571,6 +608,45 @@
       await saveConfig();
       closeModal('site-settings-modal');
       showToast('Settings saved', 'Site name, logo and colors updated.');
+      const persistChk = document.getElementById('ss-persistent-notifs');
+      if (persistChk && !persistChk.disabled) {
+        if (persistChk.checked) enablePersistentNotifs();
+        else disablePersistentNotifs();
+      }
+    }
+
+    function urlBase64ToUint8Array(b64) {
+      const pad = '='.repeat((4 - b64.length % 4) % 4);
+      const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+      return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+    }
+
+    async function enablePersistentNotifs() {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') { showToast('Blocked', 'Allow notifications in browser settings, then try again.', 6000); return; }
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+        const keyRes = await fetch('/api/push-vapid-key');
+        const { publicKey } = await keyRes.json();
+        if (!publicKey) { showToast('Error', 'Push not configured on server.', 5000); return; }
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+        await fetch('/api/push-subscribe', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+        showToast('Persistent Notifications On', 'You\'ll be notified even when this tab is closed.');
+      } catch (e) { console.error(e); showToast('Error', 'Could not enable persistent notifications.', 5000); }
+    }
+
+    async function disablePersistentNotifs() {
+      try {
+        if (!('serviceWorker' in navigator)) return;
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch('/api/push-subscribe', { method: 'DELETE', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+          await sub.unsubscribe();
+        }
+        showToast('Persistent Notifications Off', 'You\'ll only be notified while this tab is open.');
+      } catch (e) { console.error(e); }
     }
 
     // DOMContentLoaded — check session
@@ -578,6 +654,10 @@
       document.querySelectorAll('.modal-overlay').forEach(el => {
         el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
       });
+      if (new URLSearchParams(location.search).get('openOrders') === '1') {
+        history.replaceState({}, '', '/admin.html');
+        setTimeout(() => { if (typeof openOrders === 'function') openOrders(); }, 800);
+      }
 
       if (adminToken) {
         try {

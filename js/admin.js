@@ -111,8 +111,18 @@ function updateOrdersBadge() {
 function handleNewOrder(order) {
   if (!isAdmin) return;
   const itemSummary = order.items.map(i => `${esc(i.name)} ×${i.qty}`).join(', ');
-  showToast(`🛍 New Order — $${esc(order.total)}`, `${itemSummary} · ${esc(order.vehicle)} · ${esc(order.plate).toUpperCase()}`);
+  const plate = esc(order.plate).toUpperCase();
+  showToast(`🛍 New Order — $${esc(order.total)}`, `${itemSummary} · ${esc(order.vehicle)} · ${plate}`);
   playNotificationBeep();
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const n = new Notification(`New Order — $${esc(order.total)}`, {
+      body: `${itemSummary}\n${esc(order.vehicle)} · ${plate}`,
+      icon: '/favicon.ico',
+      tag: `order-${order.id}`,
+      renotify: true,
+    });
+    n.onclick = () => { window.focus(); openOrders(); n.close(); };
+  }
   newOrderCount++; updateOrdersBadge();
   const panel = document.getElementById('orders-overlay');
   if (panel && panel.classList.contains('open')) {

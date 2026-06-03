@@ -641,6 +641,31 @@ function completeLogin() {
   if (typeof renderGrid === 'function') renderGrid();
   renderSlider();
   connectSSE();
+  requestNotifPermission();
+}
+
+function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then(updateNotifBtn);
+  } else {
+    updateNotifBtn(Notification.permission);
+  }
+}
+
+function updateNotifBtn(permission) {
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+  // show button only when permission can still be requested (not yet denied in browser settings)
+  btn.style.display = (permission === 'default') ? '' : 'none';
+}
+
+async function enableNotifications() {
+  if (!('Notification' in window)) return;
+  const perm = await Notification.requestPermission();
+  updateNotifBtn(perm);
+  if (perm === 'granted') showToast('Notifications enabled', 'You\'ll get alerts for new orders.');
+  else if (perm === 'denied') showToast('Blocked', 'Allow notifications in your browser settings.', 6000);
 }
 
 async function handleAuthFailure() {
