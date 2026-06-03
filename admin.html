@@ -370,9 +370,9 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- SCRIPTS: shared + shop (for renderGrid) + admin -->
-  <script src="js/shared.js?v=8"></script>
-  <script src="js/shop.js?v=8"></script>
-  <script src="js/admin.js?v=8"></script>
+  <script src="js/shared.js?v=9"></script>
+  <script src="js/shop.js?v=9"></script>
+  <script src="js/admin.js?v=9"></script>
   <script>
     // Synchronous check — runs at parse time before DOMContentLoaded
     if (localStorage.getItem('pouches-admin-token')) {
@@ -680,7 +680,9 @@
         setTimeout(() => { if (typeof openOrders === 'function') openOrders(); }, 800);
       }
 
-      if (adminToken) {
+      const _storedToken = localStorage.getItem('pouches-admin-token');
+      if (_storedToken) {
+        adminToken = _storedToken;
         activateAdminPage();
       }
     });
